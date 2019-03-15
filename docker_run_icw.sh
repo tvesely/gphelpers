@@ -3,6 +3,7 @@ set -ex
 
 GIT_REPO=$1
 GIT_BRANCH=$2
+MAKE_COMMAND=${3:-"-k PGOPTIONS='-c optimizer=on' installcheck-world"}
 
 DOCKER_BUILD_IMAGE=pivotaldata/gpdb6-centos7-build:latest
 DOCKER_TEST_IMAGE=pivotaldata/gpdb6-centos7-test:latest
@@ -69,7 +70,7 @@ test_gpdb() {
 	DOCKER_CONTAINER=$(docker run -it --rm -d \
 	  -v ${TEMP_GPDB_DOCKER_REPO}:/gpdb_repo \
 	  -v ${ARTIFACT_DIR}/${GPDB_SHA}:/bin_gpdb \
-      -e MAKE_TEST_COMMAND="-k PGOPTIONS='-c optimizer=on' installcheck-world" \
+      -e MAKE_TEST_COMMAND="${MAKE_COMMAND}" \
       -e TEST_OS=centos \
 	  ${DOCKER_TEST_IMAGE} \
 	  /bin/bash)
@@ -79,7 +80,7 @@ test_gpdb() {
 	  bash -c "mkdir /gpAux_ext/ &&
 				cp -R /gpdb_repo gpdb_src
 			    gpdb_src/concourse/scripts/ic_gpdb.bash" && \
-	docker stop ${DOCKER_CONTAINER} || \
+	echo container=${DOCKER_CONTAINER} || \
 	echo "ICW Failed on container ${DOCKER_CONTAINER}" && \
 	echo "   HINT: docker exec -it ${DOCKER_CONTAINER}"
 
