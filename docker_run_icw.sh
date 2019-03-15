@@ -68,7 +68,7 @@ build_gpdb() {
 	  -e TARGET_OS_VERSION=7 \
 	  -e TASK_OS=centos \
 	  -e TASK_OS_VERSION=7 \
-	  -e CONFIGURE_FLAGS='--enable-cassert' \
+	  -e CONFIGURE_FLAGS="--enable-cassert ${CONFIGURE_FLAGS}" \
 	  -e BLD_TARGETS="clients loaders" \
 	  -e OUTPUT_ARTIFACT_DIR=gpdb_artifacts/${GPDB_SHA} \
 	  ${DOCKER_BUILD_IMAGE} \
