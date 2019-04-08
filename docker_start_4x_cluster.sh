@@ -32,7 +32,7 @@ start_gpdb() {
     )
 
 
-    SKIP=`awk '/^__END_HEADER__/ {print NR + 1; exit 0; }' ${GPDB_BIN_DIR}/greenplum-db-${GPDB_VERSION}-rhel5-x86_64.bin`
+    SKIP=`awk '/^__END_HEADER__/ {print NR + 1; exit 0; }' ${GPDB_BIN_DIR}/greenplum-db-${GPDB_VERSION}*rhel5*.bin`
 
     docker exec -it ${DOCKER_CONTAINER} \
     bash -c "cp -R /gpdb_repo /gpdb_src
