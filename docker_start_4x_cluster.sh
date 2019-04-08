@@ -1,19 +1,16 @@
 #!/bin/bash
 set -ex
 
+source $(dirname $0)/common.sh
+
+
 GIT_REPO=~/workspace/gpdb4
 GIT_BRANCH=4.3_STABLE
 GPDB_VERSION_TO_RUN=$1
 
-DOCKER_RUN_IMAGE=pivotaldata/centos-gpdb-dev:6
-TEMP_GPDB_DOCKER_REPO=/tmp/gpdb_temp_docker_repo_$$
 TRANSFER_DIR=/tmp/${GPDB_VERSION_TO_RUN}_docker
 
 GPDB_BIN_DIR=~/platform/gpdb/rhel5/bin/
-
-function finish {
-  rm -rf ${TEMP_GPDB_DOCKER_REPO}
-}
 
 start_gpdb() {
     GPDB_VERSION=$1
@@ -27,7 +24,7 @@ start_gpdb() {
       -v ${TRANSFER_DIR}:/transfer \
       --name gpdb_${GPDB_VERSION} \
       --cap-add=SYS_PTRACE \
-          ${DOCKER_RUN_IMAGE} \
+          ${DOCKER_TEST_IMAGE} \
           /bin/bash
     )
 
@@ -49,16 +46,7 @@ start_gpdb() {
 }
 
 main() {
-    trap finish EXIT
-
-    if [ -d ${TEMP_GPDB_DOCKER_REPO} ]; then
-            rm -rf ${TEMP_GPDB_DOCKER_REPO}
-    fi
-
-    git clone ${GIT_REPO} ${TEMP_GPDB_DOCKER_REPO}
-    pushd ${TEMP_GPDB_DOCKER_REPO}
-      git checkout ${GIT_BRANCH}
-    popd
+    setup_helper_environment
 
     if [ ! -d ${TRANSFER_DIR} ]; then
         mkdir ${TRANSFER_DIR}

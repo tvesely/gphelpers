@@ -1,52 +1,20 @@
 #!/bin/bash
 set -ex
 
+source $(dirname $0)/common.sh
+
 GIT_REPO=$1
 GIT_BRANCH=$2
 MAKE_COMMAND=${3:-"-k PGOPTIONS='-c optimizer=on' installcheck-world"}
 
-GP5X_DOCKER_BUILD_IMAGE="pivotaldata/centos-gpdb-dev:7-gcc6.2-llvm3.7"
-GP5X_DOCKER_TEST_IMAGE="pivotaldata/centos-gpdb-dev:7-gcc6.2-llvm3.7"
-GP6X_DOCKER_BUILD_IMAGE="pivotaldata/gpdb6-centos7-build:latest"
-GP6X_DOCKER_TEST_IMAGE="pivotaldata/gpdb6-centos7-test:latest"
-
-TEMP_GPDB_DOCKER_REPO=/tmp/gpdb_temp_docker_repo_$$
-
 ARTIFACT_DIR=/tmp/artifacts
-GPADDON_TEMP_REPO=/tmp/gpaddon_temp_docker_repo
 
 export CLOUDSDK_CORE_PROJECT=data-gp-releng
-
-function finish {
-  rm -rf ${TEMP_GPDB_DOCKER_REPO}
-}
 
 build_gpdb() {
     GPDB_VERSION=$1
 
-	if [ -d ${GPADDON_TEMP_REPO} ]; then
-		rm -rf ${GPADDON_TEMP_REPO}
-	fi
-
-	git clone git@github.com:pivotal/gp-addon ${GPADDON_TEMP_REPO}
-
     
-    if [ "${GPDB_VERSION}" -eq "5" ]; then
-        DOCKER_BUILD_IMAGE=${GP5X_DOCKER_BUILD_IMAGE}
-        pushd ${GPADDON_TEMP_REPO}
-            git checkout 5X_STABLE
-        popd
-
-    elif [ "${GPDB_VERSION}" -eq "6" ]; then
-        gsutil -m cp gs://gp-internal-artifacts/centos7/{sigar,lib,python}* ${ARTIFACT_DIR}
-
-        LIBQUICKLZ_RPM=$(basename `ls $ARTIFACT_DIR/libquicklz-1*.rpm`)
-        LIBQUICKLZ_DEVEL_RPM=$(basename `ls $ARTIFACT_DIR/libquicklz-devel*.rpm`)
-        LIBSIGAR_RPM=$(basename `ls $ARTIFACT_DIR/sigar*.targz`)
-        PYTHON_TGZ=$(basename `ls $ARTIFACT_DIR/python*.tar.gz`)
-
-        DOCKER_BUILD_IMAGE=${GP6X_DOCKER_BUILD_IMAGE}
-    fi
 
 
 	docker pull ${DOCKER_BUILD_IMAGE}
@@ -54,7 +22,7 @@ build_gpdb() {
 
 	docker run -it --rm \
 	  -v ${TEMP_GPDB_DOCKER_REPO}:/gpdb_repo \
-	  -v ${GPADDON_TEMP_REPO}:/gpaddon_src \
+	  -v ${TEMP_GPADDON_REPO}:/gpaddon_src \
 	  -v ${ARTIFACT_DIR}/${LIBQUICKLZ_RPM}:/libquicklz-installer/${LIBQUICKLZ_RPM} \
 	  -v ${ARTIFACT_DIR}/${LIBQUICKLZ_DEVEL_RPM}:/libquicklz-devel-installer/${LIBQUICKLZ_DEVEL_RPM} \
 	  -v ${ARTIFACT_DIR}/${LIBSIGAR_RPM}:/libsigar-installer/${LIBSIGAR_RPM} \
@@ -79,11 +47,6 @@ build_gpdb() {
 }
 
 test_gpdb() {
-    if [ "${GPDB_VERSION}" -eq "5" ]; then
-        DOCKER_TEST_IMAGE=${GP5X_DOCKER_TEST_IMAGE}
-    elif [ "${GPDB_VERSION}" -eq "6" ]; then
-        DOCKER_TEST_IMAGE=${GP6X_DOCKER_TEST_IMAGE}
-    fi
 
 	docker pull ${DOCKER_TEST_IMAGE}
 
@@ -107,20 +70,7 @@ test_gpdb() {
 }
 
 main() {
-	trap finish EXIT
-
-	if [ -d ${TEMP_GPDB_DOCKER_REPO} ]; then
-		rm -rf ${TEMP_GPDB_DOCKER_REPO}
-	fi
-
-	git clone ${GIT_REPO} ${TEMP_GPDB_DOCKER_REPO}
-	pushd ${TEMP_GPDB_DOCKER_REPO}
-	  git checkout ${GIT_BRANCH}
-      git submodule update --init --recursive
-	  GPDB_SHA=$(git rev-parse HEAD)
-      GPDB_VERSION=$(expr "`./getversion`" : "\(^[0-9]\)\.[0-9]\+\.[0-9]\+")
-	popd
-
+    setup_helper_environment
 
 	[ -d ${ARTIFACT_DIR} ] || mkdir ${ARTIFACT_DIR}
 
