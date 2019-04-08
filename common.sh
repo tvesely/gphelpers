@@ -72,10 +72,29 @@ set_docker_images() {
 
 }
 
+get_pivnet_token() {
+    # This lets the author use his credstore without setting magic stuff
+    # by using even more magic.
+    if [ -f ${HOME}/deployments/credstore/credstore.bash ]; then
+
+        # for privacy!
+        set +x
+            source ${HOME}/deployments/credstore/credstore.bash
+            PIVNET_API_TOKEN=`passgetstring web/network.pivotal.io uaa_api_tokens`
+        set -x
+    fi
+
+    if [ "${PIVNET_API_TOKEN}" == "" ]; then
+        echo "Must set PIVNET_API_TOKEN to download from pivnet"
+        exit 1
+    fi
+}
+
 pivnet_login() {
     if [ ! "${PIVNET_LOGGED_IN}" == "true" ]; then
-        source ${HOME}/deployments/credstore/credstore.bash
-        pivnet login --api-token=`passgetstring web/network.pivotal.io uaa_api_tokens`
+        get_pivnet_token
+
+        pivnet login --api-token=${PIVNET_API_TOKEN}
     fi
 
     PIVNET_LOGGED_IN="true"
@@ -84,13 +103,12 @@ pivnet_login() {
 pivnet_download_4X() {
     SLUG=$1
 
-    pivnet_login
-
     if [ ! -d ${GPDB_4X_ZIP_DIRECTORY} ]; then
         mkdir -p ${GPDB_4X_ZIP_DIRECTORY}
     fi
 
     if [ ! -f ${GPDB_4X_ZIP_DIRECTORY}/greenplum-db-${SLUG}*.zip ]; then
+        pivnet_login
         pushd ${GPDB_4X_ZIP_DIRECTORY}
             pivnet download-product-files -p pivotal-gpdb -r ${SLUG} -g greenplum-db-${SLUG}*rhel5*.zip
         popd
@@ -100,13 +118,12 @@ pivnet_download_4X() {
 pivnet_download_5X() {
     SLUG=$1
 
-    pivnet_login
-
     if [ ! -d ${GPDB_5X_RPM_DIRECTORY} ]; then
         mkdir -p ${GPDB_5X_RPM_DIRECTORY}
     fi
 
     if [ ! -f ${GPDB_5X_RPM_DIRECTORY}/greenplum-db-${SLUG}-rhel7-x86_64.rpm ]; then
+        pivnet_login
         pushd ${GPDB_5X_RPM_DIRECTORY}
             pivnet download-product-files -p pivotal-gpdb -r ${SLUG} -g greenplum-db-${SLUG}-rhel7-x86_64.rpm
         popd
