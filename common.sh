@@ -9,8 +9,10 @@ TEMP_GPADDON_REPO=/tmp/gpaddon_temp_docker_repo_$$
 
 ARTIFACT_DIR=/tmp/artifacts
 
-
 CLOUDSDK_CORE_PROJECT=data-gp-releng
+
+GPDB_5X_RPM_DIRECTORY=${HOME}/platform/gpdb/rpms/
+GPDB_4X_ZIP_DIRECTORY=${HOME}/platform/gpdb/zip/
 
 function finish {
   rm -rf ${TEMP_GPDB_DOCKER_REPO}
@@ -66,6 +68,47 @@ set_docker_images() {
         PYTHON_TGZ=$(basename `ls $ARTIFACT_DIR/python*.tar.gz`)
     fi
 
+}
+
+pivnet_login() {
+    if [ ! "${PIVNET_LOGGED_IN}" == "true" ]; then
+        source ${HOME}/deployments/credstore/credstore.bash
+        pivnet login --api-token=`passgetstring web/network.pivotal.io uaa_api_tokens`
+    fi
+
+    PIVNET_LOGGED_IN="true"
+}
+
+pivnet_download_4X() {
+    SLUG=$1
+
+    pivnet_login
+
+    if [ ! -d ${GPDB_4X_ZIP_DIRECTORY} ]; then
+        mkdir -p ${GPDB_4X_ZIP_DIRECTORY}
+    fi
+
+    if [ ! -f ${GPDB_4X_ZIP_DIRECTORY}/greenplum-db-${SLUG}*.zip ]; then
+        pushd ${GPDB_4X_ZIP_DIRECTORY}
+            pivnet download-product-files -p pivotal-gpdb -r ${SLUG} -g greenplum-db-${SLUG}*rhel5*.zip
+        popd
+    fi
+}
+
+pivnet_download_5X() {
+    SLUG=$1
+
+    pivnet_login
+
+    if [ ! -d ${GPDB_5X_RPM_DIRECTORY} ]; then
+        mkdir -p ${GPDB_5X_RPM_DIRECTORY}
+    fi
+
+    if [ ! -f ${GPDB_5X_RPM_DIRECTORY}/greenplum-db-${SLUG}-rhel7-x86_64.rpm ]; then
+        pushd ${GPDB_5X_RPM_DIRECTORY}
+            pivnet download-product-files -p pivotal-gpdb -r ${SLUG} -g greenplum-db-${SLUG}-rhel7-x86_64.rpm
+        popd
+    fi
 }
 
 setup_helper_environment() {
