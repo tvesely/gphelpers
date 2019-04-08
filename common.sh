@@ -30,7 +30,9 @@ make_temp_docker_repos() {
 
 	pushd ${TEMP_GPDB_DOCKER_REPO}
 	  git checkout ${GIT_BRANCH}
-      git submodule update --init --recursive
+      if [ ! "$FASTCLONE" == "true" ]; then
+          git submodule update --init --recursive
+      fi
 	  GPDB_SHA=$(git rev-parse HEAD)
       GPDB_VERSION=$(./getversion | perl -lane '/^([0-9])\.[0-9]+\.[0-9]+/; print $1')
 	popd

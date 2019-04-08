@@ -6,6 +6,7 @@ source $(dirname $0)/common.sh
 GIT_REPO=~/workspace/gpdb4
 GIT_BRANCH=4.3_STABLE
 GPDB_VERSION_TO_RUN=$1
+FASTCLONE=true
 
 TRANSFER_DIR=/tmp/${GPDB_VERSION_TO_RUN}_docker
 
