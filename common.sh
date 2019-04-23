@@ -3,6 +3,8 @@ GP5X_DOCKER_BUILD_IMAGE="pivotaldata/centos-gpdb-dev:7-gcc6.2-llvm3.7"
 GP5X_DOCKER_TEST_IMAGE="pivotaldata/centos-gpdb-dev:7-gcc6.2-llvm3.7"
 GP6X_DOCKER_BUILD_IMAGE="pivotaldata/gpdb6-centos7-build:latest"
 GP6X_DOCKER_TEST_IMAGE="pivotaldata/gpdb6-centos7-test:latest"
+GP7X_DOCKER_BUILD_IMAGE="pivotaldata/gpdb6-centos7-build:latest"
+GP7X_DOCKER_TEST_IMAGE="pivotaldata/gpdb6-centos7-test:latest"
 
 TEMP_GPDB_DOCKER_REPO=/tmp/gpdb_temp_docker_repo_$$
 TEMP_GPADDON_REPO=/tmp/gpaddon_temp_docker_repo_$$
@@ -68,6 +70,21 @@ set_docker_images() {
         LIBQUICKLZ_DEVEL_RPM=$(basename `ls $ARTIFACT_DIR/libquicklz-devel*.rpm`)
         LIBSIGAR_RPM=$(basename `ls $ARTIFACT_DIR/sigar*.targz`)
         PYTHON_TGZ=$(basename `ls $ARTIFACT_DIR/python*.tar.gz`)
+        CONFIGURE_FLAGS="--enable-debug-extensions ${CONFIGURE_FLAGS}"
+    elif [ "${GPDB_VERSION}" -eq "7" ]; then
+        DOCKER_BUILD_IMAGE=${GP7X_DOCKER_BUILD_IMAGE}
+        DOCKER_TEST_IMAGE=${GP7X_DOCKER_TEST_IMAGE}
+
+        CLOUDSDK_CORE_PROJECT=${CLOUDSDK_CORE_PROJECT} \
+          gsutil \
+            -m cp gs://gp-internal-artifacts/centos7/{sigar,lib,python}* \
+            ${ARTIFACT_DIR}
+
+        LIBQUICKLZ_RPM=$(basename `ls $ARTIFACT_DIR/libquicklz-1*.rpm`)
+        LIBQUICKLZ_DEVEL_RPM=$(basename `ls $ARTIFACT_DIR/libquicklz-devel*.rpm`)
+        LIBSIGAR_RPM=$(basename `ls $ARTIFACT_DIR/sigar*.targz`)
+        PYTHON_TGZ=$(basename `ls $ARTIFACT_DIR/python*.tar.gz`)
+        CONFIGURE_FLAGS="--enable-debug-extensions ${CONFIGURE_FLAGS}"
     fi
 
 }
