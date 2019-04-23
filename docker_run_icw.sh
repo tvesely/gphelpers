@@ -14,11 +14,7 @@ export CLOUDSDK_CORE_PROJECT=data-gp-releng
 build_gpdb() {
     GPDB_VERSION=$1
 
-    
-
-
 	docker pull ${DOCKER_BUILD_IMAGE}
-
 
 	docker run -it --rm \
 	  -v ${TEMP_GPDB_DOCKER_REPO}:/gpdb_repo \
@@ -71,8 +67,6 @@ test_gpdb() {
 
 main() {
     setup_helper_environment
-
-	[ -d ${ARTIFACT_DIR} ] || mkdir ${ARTIFACT_DIR}
 
 	[ -d ${ARTIFACT_DIR}/$GPDB_SHA ] ||	mkdir ${ARTIFACT_DIR}/$GPDB_SHA
 

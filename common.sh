@@ -148,6 +148,8 @@ pivnet_download_5X() {
 }
 
 setup_helper_environment() {
+    [ -d ${ARTIFACT_DIR} ] || mkdir ${ARTIFACT_DIR}
+
     make_temp_docker_repos
     set_docker_images
 }
