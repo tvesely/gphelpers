@@ -1,0 +1,5 @@
+.vagrant
+files/bin_gpdb.tar.gz
+files/greenplum-db*.zip
+id_rsa
+id_rsa.pub

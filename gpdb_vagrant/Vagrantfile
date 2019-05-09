@@ -1,0 +1,29 @@
+Vagrant.configure(2) do |config|
+
+## customer PCC config
+  config.vm.box = "bento/centos-7"
+  config.vm.provider :virtualbox do |vb|
+    vb.customize ["modifyvm", :id, "--memory", 3096] # RAM allocated to each VM
+  end
+  config.vm.provision :shell, :path => "bootstrap.sh"
+
+  config.vm.define :sdw1 do |sdw1|
+    sdw1.vm.hostname = "sdw1.gpdb.local"
+    sdw1.vm.network :private_network, ip: "192.168.64.101"
+  end
+
+  config.vm.define :sdw2 do |sdw2|
+    sdw2.vm.hostname = "sdw2.gpdb.local"
+    sdw2.vm.network :private_network, ip: "192.168.64.102"
+  end
+
+  config.vm.define :mdw do |mdw|
+    #mdw.vm.provision :shell, :path => "scripts/initgpdb.sh", privileged: false
+    mdw.vm.provision :shell, :path => "scripts/initgpdb.sh"
+    #mdw.vm.provision :shell, :path => "scripts/initbehave.sh"
+    mdw.vm.hostname = "mdw.gpdb.local"
+    mdw.vm.network :private_network, ip: "192.168.64.100"
+    mdw.vm.network "forwarded_port", guest: 5432, host: 5432
+  end
+
+end
