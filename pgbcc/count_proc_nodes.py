@@ -9,11 +9,9 @@
 from __future__ import print_function
 from bcc import BPF
 from time import sleep
-
-name = "/usr/local/gpdb/bin/postgres"
-
 from elftools.elf.elffile import ELFFile
 
+import argparse
 
 def get_enum(filename, enum_name):
     #print("Finding enum: %s filename: %s" % (enum_name, filename))
@@ -51,6 +49,13 @@ def find_enum(dwarfinfo, enum_name):
             except KeyError:
                 continue
     return None
+
+parser = argparse.ArgumentParser(description='Count postgres execution nodes')
+parser.add_argument('--executable', help='path to postgres binary',
+                    default='/usr/local/gpdb/bin/postgres')
+args = parser.parse_args()
+
+name = args.executable
 
 nodetag = get_enum(name, 'NodeTag')
 
