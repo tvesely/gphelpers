@@ -1,4 +1,11 @@
 #!/usr/bin/python
+#
+# count_proc_nodes: Trace Postgres/GPDB proc node execution globally across
+#                   a host.
+#
+# Borrows liberally from the examples from both elftools and bcc. Requires
+# both software packages installed to run.
+
 from __future__ import print_function
 from bcc import BPF
 from time import sleep
