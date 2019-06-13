@@ -11,7 +11,7 @@ TEMP_GPADDON_REPO=/tmp/gpaddon_temp_docker_repo_$$
 
 ARTIFACT_DIR=/tmp/artifacts
 
-CLOUDSDK_CORE_PROJECT=data-gp-releng
+export CLOUDSDK_CORE_PROJECT=data-gp-releng
 
 GPDB_5X_RPM_DIRECTORY=${HOME}/platform/gpdb/rpms/
 GPDB_4X_ZIP_DIRECTORY=${HOME}/platform/gpdb/zip/
@@ -153,3 +153,35 @@ setup_helper_environment() {
     make_temp_docker_repos
     set_docker_images
 }
+
+build_gpdb() {
+    GPDB_VERSION=$1
+
+	docker pull ${DOCKER_BUILD_IMAGE}
+
+	docker run -it --rm \
+	  -v ${TEMP_GPDB_DOCKER_REPO}:/gpdb_repo \
+	  -v ${TEMP_GPADDON_REPO}:/gpaddon_src \
+	  -v ${ARTIFACT_DIR}/${LIBQUICKLZ_RPM}:/libquicklz-installer/${LIBQUICKLZ_RPM} \
+	  -v ${ARTIFACT_DIR}/${LIBQUICKLZ_DEVEL_RPM}:/libquicklz-devel-installer/${LIBQUICKLZ_DEVEL_RPM} \
+	  -v ${ARTIFACT_DIR}/${LIBSIGAR_RPM}:/libsigar-installer/${LIBSIGAR_RPM} \
+	  -v ${ARTIFACT_DIR}/${PYTHON_TGZ}:/python-tarball/${PYTHON_TGZ} \
+	  -v /tmp/artifacts:/gpdb_artifacts \
+	  -e IVYREPO_PASSWD="${IVYREPO_PASSWD}" \
+	  -e IVYREPO_USER="${IVYREPO_USER}" \
+	  -e IVYREPO_REALM="${IVYREPO_REALM}" \
+	  -e IVYREPO_HOST="${IVYREPO_HOST}" \
+	  -e TARGET_OS=centos \
+	  -e TARGET_OS_VERSION=7 \
+	  -e TASK_OS=centos \
+	  -e TASK_OS_VERSION=7 \
+	  -e CONFIGURE_FLAGS="--enable-cassert ${CONFIGURE_FLAGS}" \
+	  -e BLD_TARGETS="clients loaders" \
+	  -e OUTPUT_ARTIFACT_DIR=gpdb_artifacts/${GPDB_SHA} \
+	  ${DOCKER_BUILD_IMAGE} \
+	  bash -c "mkdir /gpAux_ext/ &&
+				cp -R /gpdb_repo gpdb_src &&
+				gpdb_src/concourse/scripts/sync_tools.bash &&
+				gpdb_src/concourse/scripts/compile_gpdb.bash"
+}
+
