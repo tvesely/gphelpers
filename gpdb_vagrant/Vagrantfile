@@ -1,3 +1,5 @@
+VAGRANT_COMMAND = ARGV[0]
+
 Vagrant.configure(2) do |config|
 
 ## customer PCC config
@@ -26,4 +28,8 @@ Vagrant.configure(2) do |config|
     mdw.vm.network "forwarded_port", guest: 5432, host: 5432
   end
 
+  if VAGRANT_COMMAND == "ssh"
+    config.ssh.username = 'gpadmin'
+    config.ssh.private_key_path = './ssh/id_rsa'
+  end
 end
