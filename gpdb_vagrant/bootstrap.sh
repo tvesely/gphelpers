@@ -7,7 +7,12 @@ cp /vagrant/files/resolv.conf /etc/resolv.conf
 ## install epel
 yum --enablerepo=extras install epel-release -y
 
-yum install man ed git ntp rsync unzip curl wget sysstat python-pip gcc postgresql postgresql-devel python-devel libffi-devel openssl-devel gdb strace lsof -y
+yum install man ed git ntp rsync unzip curl wget sysstat python-pip gcc postgresql postgresql-devel python-devel libffi-devel openssl-devel gdb strace lsof psmisc -y
+
+# If there was a previous run of gpdb init, delete the clusters
+if [ -f /gpdb_init_finished ]; then
+    killall postgres && echo "Killed Postgres..." || echo "No postgres processes killed"
+fi
 
 if [ -f /vagrant/files/jdk-*.rpm ]; then
     yum install /vagrant/files/jdk-*.rpm -y
@@ -39,7 +44,7 @@ EOF
 mv /tmp/hosts.new /etc/hosts
 
 # Set up gpadmin and keys for GPDB install
-useradd gpadmin
+getent passwd gpadmin || useradd gpadmin
 
 if [ ! -f /vagrant/ssh/id_rsa ]; then
     ssh-keygen -t rsa -b 4096 -a 100 -f /vagrant/ssh/id_rsa -N ''
@@ -59,9 +64,16 @@ cp /vagrant/files/gpadmin.sudoers /etc/sudoers.d/gpadmin
 
 if [ -f /vagrant/files/greenplum-db*.zip ]; then
     cp /vagrant/files/greenplum-db*.zip /tmp/greenplum-db.zip
-    unzip /tmp/greenplum-db.zip
+    unzip -o /tmp/greenplum-db.zip
     SKIP=`awk '/^__END_HEADER__/ {print NR + 1; exit 0; }' greenplum-db*.bin`
     GPDB_INSTALL_PATH=/usr/local/greenplum-db
+
+    # Wipe out the previous installation
+    if [ -d $GPDB_INSTALL_PATH ]; then
+        rm -rf $GPDB_INSTALL_PATH
+    fi
+
+    # Install the version in the files directory
     mkdir $GPDB_INSTALL_PATH
     tail -n +${SKIP} greenplum-db*.bin | tar zxf - -C $GPDB_INSTALL_PATH
     chown -R gpadmin:gpadmin $GPDB_INSTALL_PATH
@@ -70,6 +82,12 @@ fi
 if [ -f /vagrant/files/bin_gpdb.tar.gz ]; then
     cp /vagrant/files/bin_gpdb.tar.gz /tmp/bin_gpdb.tar.gz
     GPDB_DEV_BUILD_INSTALL_PATH=/usr/local/greenplum-db-devel
+    # Wipe out the previous installation
+    if [ -d $GPDB_DEV_BUILD_INSTALL_PATH ]; then
+        rm -rf $GPDB_DEV_BUILD_INSTALL_PATH
+    fi
+
+    # Install the version in the files directory
     mkdir $GPDB_DEV_BUILD_INSTALL_PATH
     tar -xzf /tmp/bin_gpdb.tar.gz -C $GPDB_DEV_BUILD_INSTALL_PATH
     chown -R gpadmin:gpadmin $GPDB_DEV_BUILD_INSTALL_PATH
@@ -93,6 +111,11 @@ EOF
     cp /tmp/gpdb_profile ~root/
     cp /tmp/gpdb_profile ~gpadmin/
     chown gpadmin:gpadmin ~gpadmin/gpdb_profile
+
+    # Wipe out the previous installation
+    rm -rf /data/primary
+    rm -rf /data/mirror
+    rm -rf /data/master
 fi
 
 if [ "${GPDB_DEV_BUILD_INSTALL_PATH}" != "" ]; then
@@ -108,21 +131,27 @@ EOF
     cp /tmp/gpdb_dev_profile ~root/
     cp /tmp/gpdb_dev_profile ~gpadmin/
     chown gpadmin:gpadmin ~gpadmin/gpdb_dev_profile
+
+    # Wipe out previous installation
+    rm -rf /data/primary_dev
+    rm -rf /data/mirror_dev
+    rm -rf /data/master_dev
 fi
 
-mkdir /data
-mkdir /data/primary
-mkdir /data/mirror
-mkdir /data/master
+[ -d /data ] || mkdir /data
+[ -d /data/primary ] || mkdir /data/primary
+[ -d /data/mirror ] || mkdir /data/mirror
+[ -d /data/master ] || mkdir /data/master
 
-mkdir /data/primary_dev
-mkdir /data/mirror_dev
-mkdir /data/master_dev
+[ -d /data/primary_dev ] || mkdir /data/primary_dev
+[ -d /data/mirror_dev ] || mkdir /data/mirror_dev
+[ -d /data/master_dev ] || mkdir /data/master_dev
 
 chown -R gpadmin:gpadmin /data/*
 
-## setup sysctl.conf
-cat <<EOF >> /etc/sysctl.conf
+if [ ! -f /gpdb_init_finished ]; then
+    ## setup sysctl.conf
+    cat <<EOF >> /etc/sysctl.conf
 kernel.shmmax = 500000000
 kernel.shmmni = 4096
 kernel.shmall = 4000000000
@@ -144,8 +173,12 @@ net.core.rmem_max = 2097152
 net.core.wmem_max = 2097152
 EOF
 
+fi
+
 sysctl -p && echo "all good here"
 
 ## fix ssh
 echo -e "\nStrictHostKeyChecking no\n" >> /etc/ssh/ssh_config
 service sshd restart
+
+touch /gpdb_init_finished
