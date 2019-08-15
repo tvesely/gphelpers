@@ -32,11 +32,12 @@ make_temp_docker_repos() {
 
 	pushd ${TEMP_GPDB_DOCKER_REPO}
 	  git checkout ${GIT_BRANCH}
-      if [ ! "$FASTCLONE" == "true" ]; then
-          git submodule update --init --recursive
-      fi
-	  GPDB_SHA=$(git rev-parse HEAD)
-      GPDB_VERSION=$(./getversion | perl -lane '/^([0-9])\.[0-9]+\.[0-9]+/; print $1')
+          if [ ! "$FASTCLONE" == "true" ]; then
+              git submodule update --init --recursive
+          fi
+          GPDB_SHA=$(git rev-parse HEAD)
+          GPDB_VERSION=$(./getversion | perl -lane '/^([0-9])\.[0-9]+\.[0-9]+/; print $1')
+          ORCA_TAG=$(perl -lane 'next unless /ORCA_TAG:\s+(.*)$/; print $1;' ./concourse/tasks/compile_gpdb.yml)
 	popd
 
 	if [ -d ${TEMP_GPADDON_REPO} ]; then
@@ -175,6 +176,7 @@ build_gpdb() {
 	  -e TARGET_OS_VERSION=7 \
 	  -e TASK_OS=centos \
 	  -e TASK_OS_VERSION=7 \
+	  -e ORCA_TAG=${ORCA_TAG} \
 	  -e CONFIGURE_FLAGS="--enable-cassert ${CONFIGURE_FLAGS}" \
 	  -e BLD_TARGETS="clients loaders" \
 	  -e OUTPUT_ARTIFACT_DIR=gpdb_artifacts/${GPDB_SHA} \
