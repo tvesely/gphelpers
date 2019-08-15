@@ -47,6 +47,8 @@ mv /tmp/hosts.new /etc/hosts
 getent passwd gpadmin || useradd gpadmin
 
 if [ ! -f /vagrant/ssh/id_rsa ]; then
+
+    [ -f /vagrant/ssh/ ] || mkdir /vagrant/ssh
     ssh-keygen -t rsa -b 4096 -a 100 -f /vagrant/ssh/id_rsa -N ''
 fi
 
