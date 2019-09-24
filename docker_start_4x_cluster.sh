@@ -58,7 +58,7 @@ main() {
         mkdir ${TRANSFER_DIR}
     fi
 
-    pivnet_download_4X ${GPDB_VERSION_TO_RUN}
+    pivnet_download_gpdb_4X ${GPDB_VERSION_TO_RUN}
 
     if [ -f ${GPDB_4X_ZIP_DIRECTORY}/greenplum-db*${GPDB_VERSION_TO_RUN}*.zip ]; then
         start_gpdb ${GPDB_VERSION_TO_RUN}

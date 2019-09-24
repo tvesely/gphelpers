@@ -13,7 +13,8 @@ ARTIFACT_DIR=/tmp/artifacts
 
 export CLOUDSDK_CORE_PROJECT=data-gp-releng
 
-GPDB_5X_RPM_DIRECTORY=${HOME}/platform/gpdb/rpms/
+GPDB_DEB_DIRECTORY=${HOME}/platform/gpdb/debs/
+GPDB_RPM_DIRECTORY=${HOME}/platform/gpdb/rpms/
 GPDB_4X_ZIP_DIRECTORY=${HOME}/platform/gpdb/zip/
 
 function finish {
@@ -118,7 +119,7 @@ pivnet_login() {
     PIVNET_LOGGED_IN="true"
 }
 
-pivnet_download_4X() {
+pivnet_download_gpdb_4X() {
     SLUG=$1
 
     if [ ! -d ${GPDB_4X_ZIP_DIRECTORY} ]; then
@@ -133,18 +134,45 @@ pivnet_download_4X() {
     fi
 }
 
-pivnet_download_5X() {
+pivnet_download_gpdb() {
     SLUG=$1
+    DOWNLOAD_MAJOR_VERSION=$(echo $SLUG | perl -lane '/^([0-9])\.[0-9]+\.[0-9]+/; print $1')
 
-    if [ ! -d ${GPDB_5X_RPM_DIRECTORY} ]; then
-        mkdir -p ${GPDB_5X_RPM_DIRECTORY}
+    if [ "${DOWNLOAD_MAJOR_VERSION}" == "6" ]; then
+        PLATFORMS="rhel7-x86_64 ubuntu18.04-amd64"
+    else
+        PLATFORMS="rhel7-x86_64"
     fi
 
-    if [ ! -f ${GPDB_5X_RPM_DIRECTORY}/greenplum-db-${SLUG}-rhel7-x86_64.rpm ]; then
-        pivnet_login
-        pushd ${GPDB_5X_RPM_DIRECTORY}
-            pivnet download-product-files -p pivotal-gpdb -r ${SLUG} -g greenplum-db-${SLUG}-rhel7-x86_64.rpm
-        popd
+    for PLATFORM in $PLATFORMS; do
+        pivnet_download_gpdb_platform ${SLUG} ${PLATFORM}
+    done
+}
+
+pivnet_download_gpdb_platform() {
+    SLUG=$1
+    PLATFORM=$2
+
+    if [ ${PLATFORM} == "rhel7-x86_64" ]; then
+        if [ ! -d ${GPDB_RPM_DIRECTORY} ]; then
+            mkdir -p ${GPDB_RPM_DIRECTORY}
+        fi
+
+        if [ ! -f ${GPDB_RPM_DIRECTORY}/greenplum-db-${SLUG}-rhel7-x86_64.rpm ]; then
+            pivnet_login
+            pushd ${GPDB_RPM_DIRECTORY}
+                pivnet download-product-files -p pivotal-gpdb -r ${SLUG} -g greenplum-db-${SLUG}-rhel7-x86_64.rpm
+            popd
+        fi
+    elif [ ${PLATFORM} == "ubuntu18.04-amd64" ]; then
+        [ -d ${GPDB_DEB_DIRECTORY} ] || mkdir -p ${GPDB_DEB_DIRECTORY}
+
+        if [ ! -f ${GPDB_DEB_DIRECTORY}/greenplum-db-${SLUG}-ubuntu18.04-amd64.deb ]; then
+            pivnet_login
+            pushd ${GPDB_DEB_DIRECTORY}
+                pivnet download-product-files -p pivotal-gpdb -r ${SLUG} -g greenplum-db-${SLUG}-ubuntu18.04-amd64.deb || echo "Version ${SLUG} for ${PLATFORM} unavailable"
+            popd
+        fi
     fi
 }
 
