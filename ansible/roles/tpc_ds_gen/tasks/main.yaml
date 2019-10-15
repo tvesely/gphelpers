@@ -1,0 +1,139 @@
+---
+- name: Set variables
+  set_fact:
+    datagen_path: "{{datagen_path_prefix}}_s{{datagen_scale}}"
+    tpcds_path: "{{ lookup('env','HOME') }}/workspace/TPC-DS"
+
+- name: Clone tvesely/TPC-DS
+  git:
+    repo: "https://github.com/tvesely/TPC-DS"
+    dest: "{{tpcds_path}}"
+    remote: ansible
+    update: false
+
+- name: Build dsdgen CLI tool
+  command: "make -j8"
+  args:
+    chdir: "{{tpcds_path}}/00_compile_tpcds/tools"
+
+- name: Create a tpcds bin directory
+  file:
+    path: "{{tpcds_path}}/bin"
+    state: directory
+    mode: 0755
+
+- name: Install dsdgen CLI tool in PATH
+  copy:
+    src: "{{tpcds_path}}/00_compile_tpcds/tools/dsqgen"
+    dest: "{{tpcds_path}}/01_gen_data/dsqgen"
+    mode: 0755
+- name: Install dsqgen CLI tool in PATH
+  copy:
+    src: "{{tpcds_path}}/00_compile_tpcds/tools/dsdgen"
+    dest: "{{tpcds_path}}/01_gen_data/dsdgen"
+    mode: 0755
+- name: Install tpcds.idx in PATH
+  copy:
+    src: "{{tpcds_path}}/00_compile_tpcds/tools/tpcds.idx"
+    dest: "{{tpcds_path}}/01_gen_data/tpcds.idx"
+    mode: 0755
+
+- name: Generate tcp-ds datagen path names
+  set_fact: path_item="{{item}}"
+  with_sequence: start=1 end={{ansible_facts["processor_vcpus"]}} format={{datagen_path}}/gen_data_%02d_of_{{ansible_facts["processor_vcpus"]}}
+  register: path_result
+
+- set_fact:
+    path_item:
+      data_segment: "{{item.0+1}}"
+      path: "{{item.1}}"
+  with_indexed_items: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
+  register: path_result
+
+- set_fact:
+    datagen_directories: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
+
+
+- name: Create a tcp-ds paths
+  file:
+    path: "{{datagen_path}}"
+    state: directory
+    owner: "{{ lookup('env', 'USERNAME')}}"
+    mode: 0755
+  become: true
+
+- name: Run tpc-ds data generation with scale {{datagen_scale}} with parallelism {{ansible_facts['processor_vcpus']}}
+  command: "{{tpcds_path}}/01_gen_data/generate_data.sh {{datagen_scale}} {{item.data_segment}} {{ansible_facts['processor_vcpus']}} {{item.path}}"
+  args:
+    creates: "{{datagen_path}}/datagen_done"
+    chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
+  with_items: "{{datagen_directories}}"
+  async: 86400
+  poll: 0
+  register: _create_instances
+
+- name: Generate tcp-ds query0.sql
+  command: "{{tpcds_path}}/00_compile_tpcds/tools/dsqgen -input {{tpcds_path}}/00_compile_tpcds/query_templates/templates.lst -directory {{tpcds_path}}/00_compile_tpcds/query_templates -output {{tpcds_path}}/01_gen_data/ -dialect pivotal -scale {{datagen_scale}} -verbose y"
+  args:
+    chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
+
+- name: Generate tcp-ds queries with scale {{datagen_scale}}
+  command: "{{tpcds_path}}/01_gen_data/generate_queries.sh {{datagen_scale}} "
+  args:
+    chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
+
+- name: Set postgres search path for {{lookup('env', 'USERNAME')}}
+  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{lookup('env', 'USERNAME')}} SET search_path=tpcds,public;' {{PGDATABASE}}"
+
+- name: Create DDLs
+  shell: "PGDATABASE={{PGDATABASE}} {{tpcds_path}}/03_ddl/rollout.sh {{datagen_scale}} false false 5 1"
+
+- name: Wait for tpc-dh datagen to finish
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: _jobs
+  until: _jobs.finished
+  delay: 60 
+  retries: 1440
+  with_items: "{{ _create_instances.results }}"
+
+- name: Touch datagen_done
+  file:
+    path: "{{datagen_path}}/datagen_done"
+    state: touch
+
+- name: Load tpc-ds datasets
+  set_fact: 
+    datasets: 
+      psql_file: "{{item}}"
+      id: "{{item | regex_replace('^.*/(\\d+)\\.\\w+\\.[\\w_]+\\.sql', '\\1')}}"
+      schema: "{{item | regex_replace('^.*/\\d+\\.(\\w+)\\.[\\w_]+\\.sql', '\\1')}}"
+      table: "{{item | regex_replace('^.*/\\d+\\.\\w+\\.([\\w_]+)\\.sql', '\\1')}}"
+  with_items:
+    - "{{ lookup('fileglob', '{{tpcds_path}}/04_load/*.postgresql.*.sql', wantlist=True) }}"
+  register: datasets_result
+  no_log: true
+- set_fact:
+    datasets: 
+      psql_file: "{{item.0.psql_file}}"
+      id: "{{item.0.id | regex_replace('^.*/(\\d+)\\.\\w+\\.[\\w_]+\\.sql', '\\1')}}"
+      schema: "{{item.0.schema}}"
+      table: "{{item.0.table}}"
+      datfile: "{{lookup('fileglob', (item.1.path + '/' + item.0.table + '_' + item.1.data_segment + '_*.dat'))}}"
+      data_segment: "{{item.1.data_segment}}"
+  with_nested:
+    - "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
+    - "{{datagen_directories}}"
+  register: datasets_result
+  no_log: true
+
+- set_fact:
+    psql_datasets: "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
+  no_log: true
+
+- name: Load data in batches of {{ansible_facts['processor_vcpus']}}
+  vars:
+    batch: "{{item}}"
+  include_tasks: load_data_batch.yaml
+  with_items:
+    - "{{psql_datasets | batch(ansible_facts['processor_vcpus']) | list}}"

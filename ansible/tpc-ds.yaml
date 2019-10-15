@@ -1,0 +1,26 @@
+---
+- name: Generate tpc-ds dataset on host
+  hosts: localhost
+  gather_facts: yes
+  #vars:
+  #  is_wsl: False
+  #  is_vagrant: False
+  vars_files:
+    - "{{userconfig}}"
+  vars:
+    - PGPORT: 5431
+    - PGDATABASE: tpcds
+  tags:
+    - tpc-ds
+
+  pre_tasks:
+    - name: mandatory variables
+      assert:
+        that:
+          - True
+            #- PGPORT is defined
+            #- POSTGRES is defined or GPDB is defined
+
+  roles:
+    - gen_postgres_cluster
+    - tpc_ds_gen

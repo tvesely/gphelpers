@@ -1,0 +1,3 @@
+---
+postgres_install_path: /usr/local/pgsql/bin
+database_path: /data03/postgres

@@ -1,0 +1,3 @@
+---
+datagen_path_prefix: /data02/tpcds_datagen
+datagen_scale: 1

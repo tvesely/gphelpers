@@ -1,0 +1,20 @@
+---
+
+#- name: Check if database is up and running
+#  command: "{{postgres_install_path}}/psql postgres -c 'select 1'"
+#  register: dbstatus
+#  ignore_errors: yes
+
+- name: Build database
+  command: "{{postgres_install_path}}/initdb -D {{database_path}}"
+  args:
+    creates: "{{database_path}}/postgresql.conf"
+
+- name: Start database
+  command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} -l /tmp/logfile start"
+  args:
+    creates: "{{database_path}}/postmaster.pid"
+
+- name: Create database {{PGDATABASE}}
+  command: "{{postgres_install_path}}/createdb {{PGDATABASE}}"
+  ignore_errors: yes
