@@ -83,10 +83,23 @@
     chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
 
 - name: Set postgres search path for {{lookup('env', 'USERNAME')}}
-  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{lookup('env', 'USERNAME')}} SET search_path=tpcds,public;' {{PGDATABASE}}"
+  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{lookup('env', 'USERNAME')}} SET search_path=tpcds,public;' {{PGDATABASE}}"
+
+- name: remove flag file
+  file:
+    path: "{{tpcds_path}}/log/end_ddl.log"
+    state: absent
 
 - name: Create DDLs
   shell: "PGDATABASE={{PGDATABASE}} {{tpcds_path}}/03_ddl/rollout.sh {{datagen_scale}} false false 5 1"
+
+- name: remove flag file
+  file:
+    path: "{{tpcds_path}}/log/end_ddl.log"
+    state: absent
+
+- name: Create DDLs
+  shell: "PGOPTIONS='-c default_table_access_method=zedstore' PGDATABASE=zedstore {{tpcds_path}}/03_ddl/rollout.sh {{datagen_scale}} false false 5 1"
 
 - name: Wait for tpc-dh datagen to finish
   async_status:
@@ -102,7 +115,13 @@
     path: "{{datagen_path}}/datagen_done"
     state: touch
 
-- name: Load tpc-ds datasets
+# Autovacuum will kill the insert performance when it triggers for ANALYZE,
+# so disable it until after the data load is complete
+- name: Disable autovacuum
+  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'off'\"";
+- command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} reload"
+
+- name: Prepare tpc-ds batches
   set_fact: 
     datasets: 
       psql_file: "{{item}}"
@@ -112,28 +131,37 @@
   with_items:
     - "{{ lookup('fileglob', '{{tpcds_path}}/04_load/*.postgresql.*.sql', wantlist=True) }}"
   register: datasets_result
-  no_log: true
 - set_fact:
     datasets: 
-      psql_file: "{{item.0.psql_file}}"
-      id: "{{item.0.id | regex_replace('^.*/(\\d+)\\.\\w+\\.[\\w_]+\\.sql', '\\1')}}"
-      schema: "{{item.0.schema}}"
-      table: "{{item.0.table}}"
-      datfile: "{{lookup('fileglob', (item.1.path + '/' + item.0.table + '_' + item.1.data_segment + '_*.dat'))}}"
-      data_segment: "{{item.1.data_segment}}"
+      psql_file: "{{item.1.psql_file}}"
+      id: "{{item.1.id | regex_replace('^.*/(\\d+)\\.\\w+\\.[\\w_]+\\.sql', '\\1')}}"
+      schema: "{{item.1.schema}}"
+      table: "{{item.1.table}}"
+      datfile: "{{lookup('fileglob', (item.0.path + '/' + item.1.table + '_' + item.0.data_segment + '_*.dat'))}}"
+      data_segment: "{{item.0.data_segment}}"
   with_nested:
-    - "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
     - "{{datagen_directories}}"
+    - "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
   register: datasets_result
-  no_log: true
-
 - set_fact:
     psql_datasets: "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
-  no_log: true
 
-- name: Load data in batches of {{ansible_facts['processor_vcpus']}}
+- name: Load data in batches of 24 to zedstore
+  vars:
+    PGDATABASE: zedstore
+    batch: "{{item}}"
+  include_tasks: load_data_batch.yaml
+  with_items:
+    - "{{psql_datasets | batch(24) | list}}"
+
+#TODO: do not exceed max_connections
+- name: Load data in batches of 24
   vars:
     batch: "{{item}}"
   include_tasks: load_data_batch.yaml
   with_items:
-    - "{{psql_datasets | batch(ansible_facts['processor_vcpus']) | list}}"
+    - "{{psql_datasets | batch(24) | list}}"
+
+- name: Enable autovacuum
+  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'on'\"";
+- command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} reload"
