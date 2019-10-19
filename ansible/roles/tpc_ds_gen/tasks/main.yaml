@@ -144,6 +144,17 @@
   with_items:
     - "{{psql_datasets | batch(24) | list | product(databases) | list}}"
 
+- name: Create indexes
+  vars:
+    database: "{{item[0]}}"
+    file: "{{item[1]}}"
+  command: "{{postgres_install_path}}/psql -f {{file}}"
+  environment:
+    PGDATABASE: "{{database.database}}"
+  when: database.gen_data
+  loop: "{{ databases | product(lookup('fileglob', tpcds_path + '/03_ddl/*.postgresql-indexes.*.sql', wantlist=True) | sort ) | list }}"
+
 - name: Enable autovacuum
   command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'on';\""
 - command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} reload"
+
