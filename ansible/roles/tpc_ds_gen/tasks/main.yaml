@@ -6,9 +6,9 @@
 
 - name: Clone tvesely/TPC-DS
   git:
-    repo: "https://github.com/tvesely/TPC-DS"
+    repo: "{{tpcds_repo}}"
     dest: "{{tpcds_path}}"
-    remote: ansible
+    remote: "{{tpcds_branch}}"
     update: false
 
 - name: Build dsdgen CLI tool
@@ -113,8 +113,6 @@
   set_fact: 
     datasets: 
       psql_file: "{{item}}"
-      id: "{{item | regex_replace('^.*/(\\d+)\\.\\w+\\.[\\w_]+\\.sql', '\\1')}}"
-      schema: "{{item | regex_replace('^.*/\\d+\\.(\\w+)\\.[\\w_]+\\.sql', '\\1')}}"
       table: "{{item | regex_replace('^.*/\\d+\\.\\w+\\.([\\w_]+)\\.sql', '\\1')}}"
   with_items:
     - "{{ lookup('fileglob', '{{tpcds_path}}/04_load/*.postgresql.*.sql', wantlist=True) }}"
@@ -122,8 +120,6 @@
 - set_fact:
     datasets: 
       psql_file: "{{item.1.psql_file}}"
-      id: "{{item.1.id | regex_replace('^.*/(\\d+)\\.\\w+\\.[\\w_]+\\.sql', '\\1')}}"
-      schema: "{{item.1.schema}}"
       table: "{{item.1.table}}"
       datfile: "{{lookup('fileglob', (item.0.path + '/' + item.1.table + '_' + item.0.data_segment + '_*.dat'))}}"
       data_segment: "{{item.0.data_segment}}"

@@ -1,3 +1,6 @@
 ---
 datagen_path_prefix: /data02/tpcds_datagen
 datagen_scale: 1
+
+tpcds_repo: https://github.com/tvesely/TPC-DS
+tpcds_branch: master
