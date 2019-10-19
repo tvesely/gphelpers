@@ -1,0 +1,19 @@
+---
+- name: Data load batch for database {{database}}
+  command: "{{postgres_install_path}}/psql {{database}} -v ON_ERROR_STOP=1 -f {{psql_command.psql_file}} -v filename=\"'{{psql_command.datfile}}'\""
+  async: 86400
+  poll: 0
+  loop: "{{ batch }}"
+  loop_control:
+    loop_var: "psql_command"
+  register: async_results
+
+- name: Wait {{database}} batch complete
+  async_status:
+    jid: "{{ async_result_item.ansible_job_id }}"
+  loop: "{{ async_results.results }}"
+  loop_control:
+    loop_var: "async_result_item"
+  register: async_poll_results
+  until: async_poll_results.finished
+  retries: 3600

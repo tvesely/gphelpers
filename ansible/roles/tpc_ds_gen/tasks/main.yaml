@@ -53,12 +53,11 @@
 - set_fact:
     datagen_directories: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
 
-
 - name: Create a tcp-ds paths
   file:
     path: "{{datagen_path}}"
     state: directory
-    owner: "{{ lookup('env', 'USERNAME')}}"
+    owner: "{{user}}"
     mode: 0755
   become: true
 
@@ -82,24 +81,13 @@
   args:
     chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
 
-- name: Set postgres search path for {{lookup('env', 'USERNAME')}}
-  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{lookup('env', 'USERNAME')}} SET search_path=tpcds,public;' {{PGDATABASE}}"
-
-- name: remove flag file
-  file:
-    path: "{{tpcds_path}}/log/end_ddl.log"
-    state: absent
-
 - name: Create DDLs
-  shell: "PGDATABASE={{PGDATABASE}} {{tpcds_path}}/03_ddl/rollout.sh {{datagen_scale}} false false 5 1"
-
-- name: remove flag file
-  file:
-    path: "{{tpcds_path}}/log/end_ddl.log"
-    state: absent
-
-- name: Create DDLs
-  shell: "PGOPTIONS='-c default_table_access_method=zedstore' PGDATABASE=zedstore {{tpcds_path}}/03_ddl/rollout.sh {{datagen_scale}} false false 5 1"
+  vars:
+    database: "{{item}}"
+  include_tasks: create_ddls.yaml
+  when: item.gen_data
+  with_items:
+    - "{{databases}}"
 
 - name: Wait for tpc-dh datagen to finish
   async_status:
@@ -118,7 +106,7 @@
 # Autovacuum will kill the insert performance when it triggers for ANALYZE,
 # so disable it until after the data load is complete
 - name: Disable autovacuum
-  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'off'\"";
+  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'off';\""
 - command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} reload"
 
 - name: Prepare tpc-ds batches
@@ -146,22 +134,16 @@
 - set_fact:
     psql_datasets: "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
 
-- name: Load data in batches of 24 to zedstore
-  vars:
-    PGDATABASE: zedstore
-    batch: "{{item}}"
-  include_tasks: load_data_batch.yaml
-  with_items:
-    - "{{psql_datasets | batch(24) | list}}"
-
-#TODO: do not exceed max_connections
+# TODO: do not exceed max_connections
 - name: Load data in batches of 24
   vars:
-    batch: "{{item}}"
+    database: "{{item[1].database}}"
+    batch: "{{item[0]}}"
   include_tasks: load_data_batch.yaml
+  when: item[1].gen_data
   with_items:
-    - "{{psql_datasets | batch(24) | list}}"
+    - "{{psql_datasets | batch(24) | list | product(databases) | list}}"
 
 - name: Enable autovacuum
-  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'on'\"";
+  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'on';\""
 - command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} reload"

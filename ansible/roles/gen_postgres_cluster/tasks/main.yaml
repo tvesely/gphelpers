@@ -27,7 +27,7 @@
     path: "{{item.path}}"
     state: directory
     mode: 0755
-    owner: "{{lookup('env', 'USERNAME')}}"
+    owner: "{{user}}"
   with_items: "{{tablespaces}}"
   become: yes
 
@@ -49,4 +49,11 @@
   command: "{{postgres_install_path}}/createdb {{item.database}} -D {{item.tablespace}}"
   ignore_errors: yes
   with_items: "{{databases}}"
+
+- name: Create tpcds schema
+  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 {{item.database}} -c \"CREATE SCHEMA tpcds;\""
+  with_items: "{{databases}}"
+
+- name: Set postgres search path for {{user}}
+  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{user}} SET search_path=tpcds,public;' {{PGDATABASE}}"
 

@@ -1,0 +1,8 @@
+---
+- name: remove flag file
+  file:
+    path: "{{tpcds_path}}/log/end_ddl.log"
+    state: absent
+
+- name: Run DDL script
+  shell: "PGOPTIONS='-c default_table_access_method={{database.default_am}}' PGDATABASE={{database.database}} {{tpcds_path}}/03_ddl/rollout.sh {{datagen_scale}} false false 5 1"

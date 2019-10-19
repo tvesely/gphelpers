@@ -13,6 +13,9 @@
   tags:
     - tpc-ds
 
+  roles:
+    - set-vars
+
   pre_tasks:
     - name: mandatory variables
       assert:
