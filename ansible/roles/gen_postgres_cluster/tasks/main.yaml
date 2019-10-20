@@ -1,26 +1,25 @@
 ---
-
 #- name: Check if database is up and running
 #  command: "{{postgres_install_path}}/psql postgres -c 'select 1'"
 #  register: dbstatus
 #  ignore_errors: yes
 
 - name: Build database
-  command: "{{postgres_install_path}}/initdb -D {{database_path}}"
+  command: "initdb"
   args:
     creates: "{{database_path}}/postgresql.conf"
 
 - name: Start database
-  command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} -l /tmp/logfile start"
+  command: "pg_ctl -l /tmp/logfile start"
   args:
     creates: "{{database_path}}/postmaster.pid"
 
 - name: Set system GUCS
-  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET {{item.guc}} TO '{{item.value}}';\""
+  command: "psql postgres -c \"ALTER SYSTEM SET {{item.guc}} TO '{{item.value}}';\""
   with_items: "{{gucs}}"
 
 - name: Restart database
-  command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} -l /tmp/logfile restart"
+  command: "pg_ctl -l /tmp/logfile restart"
 
 - name: Create tablespace directories
   file:
@@ -32,28 +31,28 @@
   become: yes
 
 - name: Drop databases
-  command: "{{postgres_install_path}}/dropdb {{item.database}}"
+  command: "dropdb {{item.database}}"
   ignore_errors: yes
   with_items: "{{databases}}"
 
 - name: Drop tablespaces
-  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 postgres -c \"drop tablespace {{item.tablespace}}\""
+  command: "psql -v ON_ERROR_STOP=1 postgres -c \"drop tablespace {{item.tablespace}}\""
   ignore_errors: yes
   with_items: "{{tablespaces}}"
 
 - name: Create tablespaces
-  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 postgres -c \"create tablespace {{item.tablespace}} location '{{item.path}}'\""
+  command: "psql -v ON_ERROR_STOP=1 postgres -c \"create tablespace {{item.tablespace}} location '{{item.path}}'\""
   with_items: "{{tablespaces}}"
 
 - name: Create databases
-  command: "{{postgres_install_path}}/createdb {{item.database}} -D {{item.tablespace}}"
+  command: "createdb {{item.database}} -D {{item.tablespace}}"
   ignore_errors: yes
   with_items: "{{databases}}"
 
 - name: Create tpcds schema
-  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 {{item.database}} -c \"CREATE SCHEMA tpcds;\""
+  command: "psql -v ON_ERROR_STOP=1 {{item.database}} -c \"CREATE SCHEMA tpcds;\""
   with_items: "{{databases}}"
 
-- name: Set postgres search path for {{user}}
-  command: "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{user}} SET search_path=tpcds,public;' {{PGDATABASE}}"
+- name: Set postgres search path for {{postgres_env.PGUSER}}
+  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{postgres_env.PGUSER}} SET search_path=tpcds,public;'"
 

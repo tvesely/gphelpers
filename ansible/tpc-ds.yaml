@@ -2,19 +2,38 @@
 - name: Generate tpc-ds dataset on host
   hosts: localhost
   gather_facts: yes
-  #vars:
-  #  is_wsl: False
-  #  is_vagrant: False
+  vars:
+    tpcds_repo: https://github.com/tvesely/TPC-DS
+    tpcds_branch: master
+
+    datagen_path_prefix: /data02/tpcds_datagen
+    datagen_scale: 1
+
+    user: "{{lookup('env', 'USER')}}"
+    postgres_install_path: /usr/local/pgsql/bin
+    database_path: "{{lookup('env', 'HOME')}}/postgres_db"
+    tablespaces:
+        - {tablespace: 'ts_data01', path: '/data01/ts_data01'}
+        - {tablespace: 'ts_data02', path: '/data02/ts_data02'}
+        - {tablespace: 'ts_data03', path: '/data03/ts_data03'}
+    databases:
+        - {database: 'zedstore', tablespace: 'ts_data01', gen_data: True, default_am: 'zedstore'}
+        - {database: 'tpcds', tablespace: 'ts_data03', gen_data: True, default_am: 'heap'}
+    gucs:
+        - {guc: 'shared_buffers', value: '10GB'}
+        - {guc: 'max_wal_size', value: '2GB'}
+        - {guc: 'checkpoint_flush_after', value: '1MB'}
+    postgres_env:
+      PGPORT: 5432
+      PGUSER: "{{user}}"
+      PGDATABASE: postgres
+      PGDATA: "{{database_path}}"
+      PGAPPNAME: tpcds_datagen
+      PATH: "{{postgres_install_path}}:{{lookup('env', 'PATH')}}"
   vars_files:
     - "{{userconfig}}"
-  vars:
-    - PGPORT: 5431
-    - PGDATABASE: tpcds
   tags:
     - tpc-ds
-
-  roles:
-    - set-vars
 
   pre_tasks:
     - name: mandatory variables
@@ -27,3 +46,4 @@
   roles:
     - gen_postgres_cluster
     - tpc_ds_gen
+  environment: "{{postgres_env}}"

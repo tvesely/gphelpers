@@ -8,7 +8,7 @@
   git:
     repo: "{{tpcds_repo}}"
     dest: "{{tpcds_path}}"
-    remote: "{{tpcds_branch}}"
+    version: "{{tpcds_branch}}"
     update: false
 
 - name: Build dsdgen CLI tool
@@ -16,44 +16,36 @@
   args:
     chdir: "{{tpcds_path}}/00_compile_tpcds/tools"
 
-- name: Create a tpcds bin directory
-  file:
-    path: "{{tpcds_path}}/bin"
-    state: directory
-    mode: 0755
-
-- name: Install dsdgen CLI tool in PATH
+- name: Install dsqgen
   copy:
     src: "{{tpcds_path}}/00_compile_tpcds/tools/dsqgen"
     dest: "{{tpcds_path}}/01_gen_data/dsqgen"
     mode: 0755
-- name: Install dsqgen CLI tool in PATH
+- name: Install dsdgen
   copy:
     src: "{{tpcds_path}}/00_compile_tpcds/tools/dsdgen"
     dest: "{{tpcds_path}}/01_gen_data/dsdgen"
     mode: 0755
-- name: Install tpcds.idx in PATH
+- name: Install tpcds.idx
   copy:
     src: "{{tpcds_path}}/00_compile_tpcds/tools/tpcds.idx"
     dest: "{{tpcds_path}}/01_gen_data/tpcds.idx"
     mode: 0755
 
-- name: Generate tcp-ds datagen path names
+- name: Generate tpc-ds datagen path names
   set_fact: path_item="{{item}}"
   with_sequence: start=1 end={{ansible_facts["processor_vcpus"]}} format={{datagen_path}}/gen_data_%02d_of_{{ansible_facts["processor_vcpus"]}}
   register: path_result
-
 - set_fact:
     path_item:
       data_segment: "{{item.0+1}}"
       path: "{{item.1}}"
   with_indexed_items: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
   register: path_result
-
 - set_fact:
     datagen_directories: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
 
-- name: Create a tcp-ds paths
+- name: Create tcp-ds folder
   file:
     path: "{{datagen_path}}"
     state: directory
@@ -65,7 +57,7 @@
   command: "{{tpcds_path}}/01_gen_data/generate_data.sh {{datagen_scale}} {{item.data_segment}} {{ansible_facts['processor_vcpus']}} {{item.path}}"
   args:
     creates: "{{datagen_path}}/datagen_done"
-    chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
+    chdir: "{{tpcds_path}}/00_compile_tpcds/tools/"
   with_items: "{{datagen_directories}}"
   async: 86400
   poll: 0
@@ -77,7 +69,7 @@
     chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
 
 - name: Generate tcp-ds queries with scale {{datagen_scale}}
-  command: "{{tpcds_path}}/01_gen_data/generate_queries.sh {{datagen_scale}} "
+  command: "{{tpcds_path}}/01_gen_data/generate_queries.sh {{datagen_scale}}"
   args:
     chdir: "{{ lookup('env','HOME') }}/workspace/TPC-DS/00_compile_tpcds/tools/"
 
@@ -106,8 +98,8 @@
 # Autovacuum will kill the insert performance when it triggers for ANALYZE,
 # so disable it until after the data load is complete
 - name: Disable autovacuum
-  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'off';\""
-- command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} reload"
+  command: "psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'off';\""
+- command: "pg_ctl reload"
 
 - name: Prepare tpc-ds batches
   set_fact: 
@@ -133,24 +125,33 @@
 # TODO: do not exceed max_connections
 - name: Load data in batches of 24
   vars:
-    database: "{{item[1].database}}"
-    batch: "{{item[0]}}"
+    database: "{{item[0].database}}"
+    batch: "{{item[1]}}"
   include_tasks: load_data_batch.yaml
-  when: item[1].gen_data
+  when: item[0].gen_data
   with_items:
-    - "{{psql_datasets | batch(24) | list | product(databases) | list}}"
+    - "{{ databases | product(psql_datasets | batch(24) | list) | list}}"
 
 - name: Create indexes
   vars:
     database: "{{item[0]}}"
     file: "{{item[1]}}"
-  command: "{{postgres_install_path}}/psql -f {{file}}"
+  command: "psql -f {{file}}"
   environment:
     PGDATABASE: "{{database.database}}"
   when: database.gen_data
   loop: "{{ databases | product(lookup('fileglob', tpcds_path + '/03_ddl/*.postgresql-indexes.*.sql', wantlist=True) | sort ) | list }}"
 
-- name: Enable autovacuum
-  command: "{{postgres_install_path}}/psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'on';\""
-- command: "{{postgres_install_path}}/pg_ctl -D {{database_path}} reload"
+- name: Analyze databases
+  command: psql -c 'ANALYZE;'
+  environment:
+    PGDATABASE: "{{database.database}}"
+  when: database.gen_data
+  loop_control:
+    loop_var: database
+  with_items: "{{databases}}"
+
+- name: Re-enable autovacuum
+  command: "psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'on';\""
+- command: "pg_ctl reload"
 

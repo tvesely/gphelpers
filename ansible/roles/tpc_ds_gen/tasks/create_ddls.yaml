@@ -1,10 +1,5 @@
 ---
-- name: remove flag file
-  file:
-    path: "{{tpcds_path}}/log/end_ddl.log"
-    state: absent
-
-- name: Run DDL script
+- name: Execute DDLs for database {{database.database}}
   command :  "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 -f {{psql_file}}"
   environment:
     PGDATABASE: "{{database.database}}"
