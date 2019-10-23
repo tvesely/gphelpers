@@ -23,6 +23,9 @@
         - {guc: 'shared_buffers', value: '10GB'}
         - {guc: 'max_wal_size', value: '2GB'}
         - {guc: 'checkpoint_flush_after', value: '1MB'}
+        - {guc: 'max_parallel_workers', value: '10'}
+        - {guc: 'max_parallel_maintenance_workers', value: '10'}
+        - {guc: 'maintenance_work_mem', value: '4GB'}
     postgres_env:
       PGPORT: 5432
       PGUSER: "{{user}}"
