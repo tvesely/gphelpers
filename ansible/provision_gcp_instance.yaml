@@ -1,0 +1,81 @@
+---
+- name: Create an instance
+  hosts: localhost
+  gather_facts: yes
+  vars:
+      home: "{{ lookup('env','HOME') }}"
+      gcp_project: "{{ lookup('env', 'ANSIBLE_GCP_PROJECT') }}"
+      gcp_cred_kind: serviceaccount
+      networkname: "{{ lookup('env', 'ANSIBLE_GCP_NETWORK_NAME') }}"
+      zone: "{{ lookup('env', 'ANSIBLE_GCP_ZONE') }}"
+      region: "us-central1"
+
+  tasks:
+   - name: create a disk
+     gcp_compute_disk:
+         name: 'pg-benchmark'
+         size_gb: 10
+         source_image: 'projects/ubuntu-os-cloud/global/images/family/ubuntu-1804-lts'
+         zone: "{{ zone }}"
+         project: "{{ gcp_project }}"
+         auth_kind: "{{ gcp_cred_kind }}"
+         scopes:
+           - https://www.googleapis.com/auth/compute
+         state: present
+     register: disk
+   - name: create a network
+     gcp_compute_network:
+         name: '{{ networkname }}'
+         project: "{{ gcp_project }}"
+         auth_kind: "{{ gcp_cred_kind }}"
+         scopes:
+           - https://www.googleapis.com/auth/compute
+         state: present
+     register: network
+   - name: create an instance
+     gcp_compute_instance:
+         state: present
+         name: pg-benchmark
+         machine_type: n1-standard-16
+         disks:
+           - auto_delete: true
+             boot: true
+             source: "{{ disk }}"
+         metadata:
+           enable-oslogin: true
+         network_interfaces:
+             - network: "{{ network }}"
+               access_configs:
+                 - name: 'External NAT'
+                   type: 'ONE_TO_ONE_NAT'
+         zone: "{{ zone }}"
+         project: "{{ gcp_project }}"
+         auth_kind: "{{ gcp_cred_kind }}"
+         scopes:
+           - https://www.googleapis.com/auth/compute
+     register: instance
+
+   - name: Wait for SSH to come up
+     wait_for: host={{ instance.networkInterfaces[0].accessConfigs[0].natIP }} port=22 delay=10 timeout=60
+
+   - name: Add host to groupname
+     add_host: hostname={{ instance.networkInterfaces[0].accessConfigs[0].natIP }} groupname=new_instances
+
+
+- name: Manage new instances
+  hosts: new_instances
+  connection: ssh
+  gather_facts: yes
+  vars:
+      # common/git
+      git_user: [GIT_USER_NAME]
+      git_email: [GIT_EMAIL]
+
+      # Running in WSL?
+      is_wsl: no
+      # Running in Vagrant?
+      is_vagrant: no
+  roles:
+    - common
+    - dev_tools
+    - postgres_dev
