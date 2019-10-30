@@ -37,7 +37,7 @@
 
 - name: Generate tpc-ds datagen path names
   set_fact: path_item="{{item}}"
-  with_sequence: start=1 end={{ansible_facts["processor_vcpus"]}} format={{ _datagen_path }}/gen_data_%02d_of_{{ansible_facts["processor_vcpus"]}}
+  with_sequence: start=1 end={{ _tpcds_parallelism }} format={{ _datagen_path }}/gen_data_%02d_of_{{ _tpcds_parallelism }}
   register: path_result
 - set_fact:
     path_item:
@@ -48,8 +48,8 @@
 - set_fact:
     datagen_directories: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
 
-- name: Run tpc-ds data generation with scale {{ _tpcds_config.datagen_scale }} with parallelism {{ ansible_facts['processor_vcpus'] }}
-  command: "{{ _tpcds_config.tpcds_path }}/01_gen_data/generate_data.sh {{ _tpcds_config.datagen_scale }} {{ item.data_segment }} {{ ansible_facts['processor_vcpus'] }} {{ item.path }}"
+- name: Run tpc-ds data generation with scale {{ _tpcds_config.datagen_scale }} with parallelism {{ _tpcds_parallelism }}
+  command: "{{ _tpcds_config.tpcds_path }}/01_gen_data/generate_data.sh {{ _tpcds_config.datagen_scale }} {{ item.data_segment }} {{ _tpcds_parallelism }} {{ item.path }}"
   args:
     creates: "{{ _datagen_path }}/datagen_done"
     chdir: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/"
@@ -97,18 +97,22 @@
 - command: "pg_ctl reload"
 
 - name: Prepare tpc-ds batches
-  set_fact: 
+  find:
+    paths: "{{ _tpcds_config.tpcds_path }}/04_load/"
+    patterns: "*.postgresql.*.sql"
+  register: load_sql
+- set_fact:
     datasets: 
-      psql_file: "{{item}}"
-      table: "{{item | regex_replace('^.*/\\d+\\.\\w+\\.([\\w_]+)\\.sql', '\\1')}}"
+      psql_file: "{{ item.path }}"
+      table: "{{ item.path | regex_replace('^.*/\\d+\\.\\w+\\.([\\w_]+)\\.sql', '\\1')}}"
   with_items:
-    - "{{ lookup('fileglob', '{{ _tpcds_config.tpcds_path }}/04_load/*.postgresql.*.sql', wantlist=True) }}"
+    - "{{ load_sql.files }}"
   register: datasets_result
 - set_fact:
     datasets: 
       psql_file: "{{item.1.psql_file}}"
       table: "{{item.1.table}}"
-      datfile: "{{lookup('fileglob', (item.0.path + '/' + item.1.table + '_' + item.0.data_segment + '_*.dat'))}}"
+      datfile: "{{item.0.path + '/' + item.1.table + '_' + item.0.data_segment + '_' + _tpcds_parallelism +'.dat'}}"
       data_segment: "{{item.0.data_segment}}"
   with_nested:
     - "{{datagen_directories}}"
@@ -127,15 +131,21 @@
   with_items:
     - "{{ _postgres_config.databases | product(psql_datasets | batch(24) | list) | list }}"
 
+- name: Get index DDLs
+  find:
+    paths: "{{ _tpcds_config.tpcds_path }}/03_ddl/"
+    patterns: "*.postgresql-indexes.*.sql"
+  register: index_sql
+
 - name: Create indexes
   vars:
     database: "{{item[0]}}"
-    file: "{{item[1]}}"
+    file: "{{item[1].path}}"
   command: "psql -f {{file}}"
   environment:
     PGDATABASE: "{{database.database}}"
   when: database.gen_data
-  loop: "{{ _postgres_config.databases | product(lookup('fileglob', _tpcds_config.tpcds_path + '/03_ddl/*.postgresql-indexes.*.sql', wantlist=True) | sort ) | list }}"
+  loop: "{{ _postgres_config.databases | product( index_sql.files ) | list }}"
 
 - name: Analyze databases
   command: psql -c 'ANALYZE;'
