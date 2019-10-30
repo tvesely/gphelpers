@@ -1,58 +1,7 @@
 ---
-#- name: Check if database is up and running
-#  command: "{{postgres_install_path}}/psql postgres -c 'select 1'"
-#  register: dbstatus
-#  ignore_errors: yes
+- name: Set variables
+  set_fact:
+    _postgres_config: "{{ postgres_default_config | combine(postgres_config, recursive=True) }}"
 
-- name: Build database
-  command: "initdb"
-  args:
-    creates: "{{database_path}}/postgresql.conf"
-
-- name: Start database
-  command: "pg_ctl -l /tmp/logfile start"
-  args:
-    creates: "{{database_path}}/postmaster.pid"
-
-- name: Set system GUCS
-  command: "psql postgres -c \"ALTER SYSTEM SET {{item.guc}} TO '{{item.value}}';\""
-  with_items: "{{gucs}}"
-
-- name: Restart database
-  command: "pg_ctl -l /tmp/logfile restart"
-
-- name: Create tablespace directories
-  file:
-    path: "{{item.path}}"
-    state: directory
-    mode: 0755
-    owner: "{{user}}"
-  with_items: "{{tablespaces}}"
-  become: yes
-
-- name: Drop databases
-  command: "dropdb {{item.database}}"
-  ignore_errors: yes
-  with_items: "{{databases}}"
-
-- name: Drop tablespaces
-  command: "psql -v ON_ERROR_STOP=1 postgres -c \"drop tablespace {{item.tablespace}}\""
-  ignore_errors: yes
-  with_items: "{{tablespaces}}"
-
-- name: Create tablespaces
-  command: "psql -v ON_ERROR_STOP=1 postgres -c \"create tablespace {{item.tablespace}} location '{{item.path}}'\""
-  with_items: "{{tablespaces}}"
-
-- name: Create databases
-  command: "createdb {{item.database}} -D {{item.tablespace}}"
-  ignore_errors: yes
-  with_items: "{{databases}}"
-
-- name: Create tpcds schema
-  command: "psql -v ON_ERROR_STOP=1 {{item.database}} -c \"CREATE SCHEMA tpcds;\""
-  with_items: "{{databases}}"
-
-- name: Set postgres search path for {{postgres_env.PGUSER}}
-  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{postgres_env.PGUSER}} SET search_path=tpcds,public;'"
-
+- include: gen_cluster.yaml
+  environment: "{{ _postgres_config.postgres_env }}"

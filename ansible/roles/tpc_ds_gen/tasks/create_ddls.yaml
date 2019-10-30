@@ -1,9 +1,9 @@
 ---
-- name: Execute DDLs for database {{database.database}}
-  command :  "{{postgres_install_path}}/psql -v ON_ERROR_STOP=1 -f {{psql_file}}"
+- name: Execute DDLs for database {{ database.database }}
+  command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file }}"
   environment:
-    PGDATABASE: "{{database.database}}"
-    PGOPTIONS: '-c default_table_access_method={{database.default_am}}'
-  with_items: "{{ lookup('fileglob', tpcds_path + '/03_ddl/*.postgresql.*.sql', wantlist=True) | sort }}"
+    PGDATABASE: "{{ database.database }}"
+    PGOPTIONS: '-c default_table_access_method={{ database.default_am }}'
+  with_items: "{{ lookup('fileglob', _tpcds_config.tpcds_path + '/03_ddl/*.postgresql.*.sql', wantlist=True) | sort }}"
   loop_control:
     loop_var: psql_file

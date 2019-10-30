@@ -1,0 +1,4 @@
+---
+postgres_config:
+    databases:
+        - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}

@@ -1,0 +1,59 @@
+---
+tpcds_tables:
+  - "call_center"
+  - "catalog_page"
+  - "catalog_returns"
+  - "catalog_sales"
+  - "customer"
+  - "customer_address"
+  - "customer_demographics"
+  - "date_dim"
+  - "household_demographics"
+  - "income_band"
+  - "inventory"
+  - "item"
+  - "promotion"
+  - "reason"
+  - "ship_mode"
+  - "store"
+  - "store_returns"
+  - "store_sales"
+  - "time_dim"
+  - "warehouse"
+  - "web_page"
+  - "web_returns"
+  - "web_sales"
+  - "web_site"
+
+tpcds_default_config:
+    tpcds_repo: https://github.com/tvesely/TPC-DS
+    tpcds_version: master
+    tpcds_path: "{{ ansible_env.HOME }}/workspace/TPC-DS"
+
+    datagen_path_prefix: /tmp/tpcds_datagen
+    datagen_scale: 1
+
+postgres_user: "{{ ansible_env.USER }}"
+postgres_install_path: /usr/local/pgsql/bin
+postgres_database_path: /usr/local/pgsql/data
+
+postgres_default_config:
+    postgres_user: "{{ postgres_user }}"
+    postgres_install_path: "{{ postgres_install_path }}"
+    postgres_database_path: "{{ postgres_database_path }}"
+    databases:
+        - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
+    gucs:
+        - {guc: 'shared_buffers', value: '1GB'}
+        - {guc: 'max_wal_size', value: '1GB'}
+        - {guc: 'checkpoint_flush_after', value: '1MB'}
+        - {guc: 'max_parallel_workers', value: '8'}
+        - {guc: 'max_parallel_maintenance_workers', value: '2'}
+        - {guc: 'maintenance_work_mem', value: '1GB'}
+    postgres_env:
+      PGPORT: 5432
+      PGUSER: "{{ postgres_user }}"
+      PGDATABASE: postgres
+      PGDATA: "{{ postgres_database_path }}"
+      PGAPPNAME: tpcds_datagen
+      PATH: "{{ postgres_install_path }}:{{ ansible_env.PATH }}"

@@ -1,0 +1,56 @@
+---
+- name: Build database
+  command: "initdb"
+  args:
+    creates: "{{ _postgres_config.postgres_database_path }}/postgresql.conf"
+
+- name: Start database
+  command: "pg_ctl -l /tmp/logfile start"
+  args:
+    creates: "{{ _postgres_config.postgres_database_path }}/postmaster.pid"
+
+- name: Set system GUCS
+  command: "psql postgres -c \"ALTER SYSTEM SET {{item.guc}} TO '{{item.value}}';\""
+  with_items: "{{ _postgres_config.gucs }}"
+
+- name: Restart database
+  command: "pg_ctl -l /tmp/logfile restart"
+
+- name: Create tablespace directories
+  file:
+    path: "{{item.path}}"
+    state: directory
+    mode: 0755
+    owner: "{{ _postgres_config.postgres_user }}"
+  with_items: "{{ _postgres_config.tablespaces }}"
+  when: _postgres_config.tablespaces is defined
+  become: yes
+
+- name: Drop databases
+  command: "dropdb {{item.database}}"
+  ignore_errors: yes
+  with_items: "{{ _postgres_config.databases }}"
+
+- name: Drop tablespaces
+  command: "psql -v ON_ERROR_STOP=1 postgres -c \"drop tablespace {{item.tablespace}}\""
+  ignore_errors: yes
+  with_items: "{{ _postgres_config.tablespaces }}"
+  when: _postgres_config.tablespaces is defined
+
+- name: Create tablespaces
+  command: "psql -v ON_ERROR_STOP=1 postgres -c \"create tablespace {{item.tablespace}} location '{{item.path}}'\""
+  with_items: "{{ _postgres_config.tablespaces }}"
+  when: _postgres_config.tablespaces is defined
+
+- name: Create databases
+  command: "createdb {{item.database}} -D {{item.tablespace}}"
+  ignore_errors: yes
+  with_items: "{{ _postgres_config.databases }}"
+
+- name: Create tpcds schema
+  command: "psql -v ON_ERROR_STOP=1 {{item.database}} -c \"CREATE SCHEMA tpcds;\""
+  with_items: "{{ _postgres_config.databases }}"
+
+- name: Set postgres search path for {{postgres_env.PGUSER}}
+  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{ _postgres_config.postgres_user }} SET search_path=tpcds,public;'"
+
