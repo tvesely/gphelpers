@@ -1,0 +1,51 @@
+---
+- set_fact:
+    _user: "{{ ansible_env.USER }}"
+
+- name:
+  command: lsblk
+  register: lsblk
+- name: Create GPT partition
+  command: "parted {{ item }} --script mklabel gpt mkpart primary 0% 100% set 1 lvm on"
+  loop: "{{ lvm_devices }}"
+  become: yes
+  when: '"ssd_lvg-postgres" not in lsblk.stdout'
+
+- name: Create a volume group
+  lvg:
+    vg: ssd_lvg
+    pvs: "{{ lvm_devices | join(',') }}"
+  become: yes
+  when: '"ssd_lvg-postgres" not in lsblk.stdout'
+    
+- name: Create a logical volume
+  lvol:
+    vg: ssd_lvg
+    lv: postgres
+    size: 100%FREE
+  become: yes
+  register: lvol_create
+  when: '"ssd_lvg-postgres" not in lsblk.stdout'
+
+- name: Format LVOL
+  filesystem:
+    fstype: xfs
+    dev: /dev/mapper/ssd_lvg-postgres
+  become: yes
+  when: " '/usr/local/pgsql/data' not in lsblk.stdout"
+
+- name: Add LVOL to the fstab
+  mount:
+    path: /usr/local/pgsql/data 
+    src: "/dev/mapper/ssd_lvg-postgres" ## Full related path of device mapper to be mounted under mount point.
+    fstype: xfs
+    opts: rw,noatime,nodiratime
+    state: mounted
+  become: yes
+
+- name: Give ownership of drive to {{ _user }}
+  file:
+    path: /usr/local/pgsql/data
+    owner: "{{ _user }}"
+    mode: 0700
+  become: yes

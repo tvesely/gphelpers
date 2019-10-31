@@ -1,9 +1,15 @@
 ---
+- name: Find DDL files
+  find:
+    path: "{{  _tpcds_config.tpcds_path }}/03_ddl/"
+    patterns: "*.postgresql.*.sql"
+  register: ddl_sql
+
 - name: Execute DDLs for database {{ database.database }}
-  command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file }}"
+  command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file.path }}"
   environment:
     PGDATABASE: "{{ database.database }}"
     PGOPTIONS: '-c default_table_access_method={{ database.default_am }}'
-  with_items: "{{ lookup('fileglob', _tpcds_config.tpcds_path + '/03_ddl/*.postgresql.*.sql', wantlist=True) | sort }}"
+  with_items: "{{ ddl_sql.files | sort(attribute='path') }}"
   loop_control:
     loop_var: psql_file

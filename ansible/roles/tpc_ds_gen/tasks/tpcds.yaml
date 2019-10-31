@@ -16,16 +16,19 @@
     src: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/dsqgen"
     dest: "{{ _tpcds_config.tpcds_path }}/01_gen_data/dsqgen"
     mode: 0755
+    remote_src: true
 - name: Install dsdgen
   copy:
     src: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/dsdgen"
     dest: "{{ _tpcds_config.tpcds_path }}/01_gen_data/dsdgen"
     mode: 0755
+    remote_src: true
 - name: Install tpcds.idx
   copy:
     src: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/tpcds.idx"
     dest: "{{ _tpcds_config.tpcds_path }}/01_gen_data/tpcds.idx"
     mode: 0755
+    remote_src: true
 
 - name: Create tcp-ds folder
   file:
@@ -93,7 +96,7 @@
 # Autovacuum will kill the insert performance when it triggers for ANALYZE,
 # so disable it until after the data load is complete
 - name: Disable autovacuum
-  command: "psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'off';\""
+  command: "psql postgres -v ON_ERROR_STOP=1 -c \"ALTER SYSTEM SET autovacuum TO 'off';\""
 - command: "pg_ctl reload"
 
 - name: Prepare tpc-ds batches
@@ -141,14 +144,14 @@
   vars:
     database: "{{item[0]}}"
     file: "{{item[1].path}}"
-  command: "psql -f {{file}}"
+  command: "psql -v ON_ERROR_STOP=1 -f {{file}}"
   environment:
     PGDATABASE: "{{database.database}}"
   when: database.gen_data
   loop: "{{ _postgres_config.databases | product( index_sql.files ) | list }}"
 
 - name: Analyze databases
-  command: psql -c 'ANALYZE;'
+  command: psql -v ON_ERROR_STOP=1 -c 'ANALYZE;'
   environment:
     PGDATABASE: "{{database.database}}"
   when: database.gen_data
@@ -157,6 +160,6 @@
   with_items: "{{ _postgres_config.databases }}"
 
 - name: Re-enable autovacuum
-  command: "psql postgres -c \"ALTER SYSTEM SET autovacuum TO 'on';\""
+  command: "psql postgres -v ON_ERROR_STOP=1 -c \"ALTER SYSTEM SET autovacuum TO 'on';\""
 - command: "pg_ctl reload"
 
