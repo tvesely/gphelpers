@@ -129,19 +129,11 @@
       # common/git
       git_user: [GIT_USER_NAME]
       git_email: [GIT_EMAIL]
-      postgres_config: {}
 
       # Running in WSL?
       is_wsl: no
       # Running in Vagrant?
       is_vagrant: no
-      lvm_devices:
-        - /dev/nvme0n1
-        - /dev/nvme0n2
-        - /dev/nvme0n3
-        - /dev/nvme0n4
-        - /dev/nvme0n5
-        - /dev/nvme0n6
   roles:
     - config_gcp_disks
     - common
