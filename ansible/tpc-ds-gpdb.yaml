@@ -1,0 +1,9 @@
+---
+- name: Generate tpc-ds dataset on host
+  hosts: localhost
+  gather_facts: yes
+  tags:
+    - tpc-ds-gpdb
+
+  roles:
+    - gpdb_tpcds_gen

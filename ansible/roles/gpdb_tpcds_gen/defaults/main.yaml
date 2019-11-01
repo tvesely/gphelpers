@@ -1,0 +1,50 @@
+---
+tpcds_tables:
+  - "call_center"
+  - "catalog_page"
+  - "catalog_returns"
+  - "catalog_sales"
+  - "customer"
+  - "customer_address"
+  - "customer_demographics"
+  - "date_dim"
+  - "household_demographics"
+  - "income_band"
+  - "inventory"
+  - "item"
+  - "promotion"
+  - "reason"
+  - "ship_mode"
+  - "store"
+  - "store_returns"
+  - "store_sales"
+  - "time_dim"
+  - "warehouse"
+  - "web_page"
+  - "web_returns"
+  - "web_sales"
+  - "web_site"
+
+tpcds_default_config:
+    tpcds_repo: https://github.com/tvesely/TPC-DS
+    tpcds_version: master
+    tpcds_path: "{{ ansible_env.HOME }}/workspace/TPC-DS"
+
+    datagen_path_prefix: /tmp/tpcds_datagen
+    datagen_scale: 1
+
+gpdb_user: "{{ ansible_env.USER }}"
+gpdb_install_path: /usr/local/pgsql/bin
+gpdb_database_path: /usr/local/pgsql/data
+
+gpdb_default_config:
+    gpdb_user: "{{ gpdb_user }}"
+    gpdb_install_path: "{{ gpdb_install_path }}"
+    gpdb_database_path: "{{ gpdb_database_path }}"
+    gpdb_env:
+      PGPORT: 15432
+      PGUSER: "{{ gpdb_user }}"
+      PGDATABASE: postgres
+      PGDATA: "{{ gpdb_database_path }}"
+      PGAPPNAME: tpcds_datagen
+      PATH: "{{ gpdb_install_path }}:{{ ansible_env.PATH }}"

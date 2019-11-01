@@ -1,0 +1,6 @@
+- name: debug_task
+  debug:
+    msg: 'database: {{test}}'
+  loop: "{{batch}}"
+  loop_control: 
+    loop_var: "async_item"
