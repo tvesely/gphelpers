@@ -1,3 +1,5 @@
 ---
+is_wsl: False
+is_vagrant: False
 postgres_config: {}
 tpcds_config: {}

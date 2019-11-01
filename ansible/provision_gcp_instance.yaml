@@ -14,6 +14,8 @@
       gcp_zone: "{{ lookup('env', 'ANSIBLE_GCP_ZONE') }}"
       gcp_service_account_file: "{{ lookup('env', 'ANSIBLE_GCP_SERVICE_ACCOUNT_FILE') }}"
       gcp_service_account_contents: "{{ lookup('file', gcp_service_account_file) | string }}"
+      git_user: "{{ lookup('env', 'ANSIBLE_GIT_USER') }}"
+      git_email: "{{ lookup('env', 'ANSIBLE_GIT_EMAIL') }}"
 
   pre_tasks:
     - name: Manditory variables
@@ -29,6 +31,8 @@
           - gcp_zone != ""
           - gcp_service_account_file != ""
           - gcp_service_account_contents != ""
+          - git_user != ""
+          - git_email != ""
         fail_msg: "Environment not fully defined. Please source set-secrets.sh before running this script"
     - name: Generate gcp oslogin keyfile if it does not exist
       openssh_keypair:
@@ -125,15 +129,6 @@
   hosts: workstation_instances
   connection: ssh
   gather_facts: yes
-  vars:
-      # common/git
-      git_user: [GIT_USER_NAME]
-      git_email: [GIT_EMAIL]
-
-      # Running in WSL?
-      is_wsl: no
-      # Running in Vagrant?
-      is_vagrant: no
   roles:
     - config_gcp_disks
     - common
