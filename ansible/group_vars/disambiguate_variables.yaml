@@ -1,0 +1,117 @@
+# global settings
+build_core_count: "{{ ansible_facts['processor_vcpus'] }}"
+
+# Global postgres settings
+postgres_install_path: /usr/local/pgsql/
+postgres_database_path: /usr/local/pgsql/data
+postgres_user: postgres
+
+postgres_config:
+    install_path: "{{ postgres_install_path }}"
+    database_path: "{{ postgres_database_path }}"
+    os_username: "{{ postgres_user }}"
+
+    tablespaces:
+        tmpspace: /tmp/tmpspace
+    databases:
+        zedstore: 
+            tablespace: 'pg_default'
+            configuration_parameters:
+                default_table_access_method: 'zedstore'
+        tpcds: { tablespace: 'pg_default' }
+        '{{ postgres_user }}': { tablespace: 'pg_default'}}
+    gucs:
+        shared_buffers: 10GB
+        max_wal_size: 2GB
+        checkpoint_flush_after: 1MB
+        max_parallel_workers: 8
+        max_parallel_maintenance_workers: 8
+        maintenance_work_mem: 4GB
+        temp_tablespaces: 'tmpspace'
+    postgres_env:
+      PGPORT: 5432
+      PGUSER: "{{ postgres_user }}"
+      PGDATABASE: postgres
+      PGDATA: "{{ postgres_database_path }}"
+      PGAPPNAME: tpcds_datagen
+      PATH: "{{ postgres_install_path }}/bin:{{ ansible_env.PATH }}"
+
+# postgres_build
+_p
+postgres_default_config:
+    repo: "{{ postgres_repo }}"
+    repo_directory: "{{ansible_env.HOME}}/workspace/postgres"
+    repo_version: HEAD
+    repo_force: False
+	# Should be determined as a _repo_update variable instead
+    repo_update: False
+
+    # Build flags
+    with_lz4: False
+    enable_debug: True
+    enable_cassert: True
+    cflags: "-O0 -fno-omit-frame-pointer"
+    prefix: "/usr/local/pgsql"
+    build_core_count: "{{ build_core_count }}"
+
+postgres_build_settings:
+    enable_cassert: False
+    with_lz4: True
+    cflags: "-O2 -fno-omit-frame-pointer"
+
+greenplum_build_settings:
+    enable_cassert: False
+    with_lz4: True
+    cflags: "-O2 -fno-omit-frame-pointer"
+
+gen_tpcds_config:
+    datagen_path_prefix: /usr/local/pgsql/data/tpcds_datagen
+    datagen_scale: 270
+    gen_data:
+        - zedstore
+        - tpcds
+
+# Global greenplum settings
+greenplum_install_path: /usr/local/gpdb
+greenplum_master_database_path: /usr/local/gpdb/data
+greenplum_user: postgres
+
+# Master settings
+greenplum_master_config:
+    install_path: "{{ greenplum_install_path }}"
+    database_path: "{{ greenplum_master_database_path }}"
+    os_username: "{{ greenplum_user }}"
+
+    segments_per_host: 1
+    create_mirrors: false
+
+    tablespaces:
+        tmpspace:
+            path: /tmp/tmpspace
+            path_overrides:
+                '-1': /tmp/altenate_tmpspace
+        ts1: { path: /data01/ts1 }
+
+    databases:
+        dreddor: 
+            tablespace: 'pg_default'
+            configuration_parameters:
+                default_table_access_method: 'zedstore'
+        tpcds: { tablespace: 'pg_default' }
+        '{{ greenplum_user }}': { tablespace: 'pg_default'}
+
+    gucs:
+        shared_buffers: 200MB
+        temp_tablespaces: 'tmpspace'
+    greenplum_env:
+      PGPORT: 15432
+      PGUSER: "{{ greenplum_user }}"
+      PGDATABASE: postgres
+      PGDATA: "{{ greenplum_database_path }}"
+      PGAPPNAME: tpcds_datagen
+      PATH: "{{ greenplum_install_path }}/bin:{{ ansible_env.PATH }}"
+
+greenplum_segment_config:
+    install_path: "{{ greenplum_install_path }}"
+    os_username: "{{ greenplum_user }}"
+
