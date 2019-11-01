@@ -1,0 +1,28 @@
+postgres_config:
+    databases:
+        - {database: 'zedstore', tablespace: 'pg_default', gen_data: True, default_am: 'zedstore'}
+        - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
+    gucs:
+        - {guc: 'shared_buffers', value: '10GB'}
+        - {guc: 'max_wal_size', value: '2GB'}
+        - {guc: 'checkpoint_flush_after', value: '1MB'}
+        - {guc: 'max_parallel_workers', value: '8'}
+        - {guc: 'max_parallel_maintenance_workers', value: '8'}
+        - {guc: 'maintenance_work_mem', value: '4GB'}
+
+    #build settings
+    enable_cassert: False
+    with_lz4: True
+    cflags: "-O2 -fno-omit-frame-pointer"
+
+tpcds_config:
+    datagen_path_prefix: /usr/local/pgsql/data/tpcds_datagen
+    datagen_scale: 270
+
+lvm_devices:
+    - /dev/nvme0n1
+    - /dev/nvme0n2
+    - /dev/nvme0n3
+    - /dev/nvme0n4
+    - /dev/nvme0n5
+    - /dev/nvme0n6
