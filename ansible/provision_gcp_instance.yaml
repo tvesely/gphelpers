@@ -129,6 +129,9 @@
   hosts: workstation_instances
   connection: ssh
   gather_facts: yes
+  vars:
+      git_user: "{{ lookup('env', 'ANSIBLE_GIT_USER') }}"
+      git_email: "{{ lookup('env', 'ANSIBLE_GIT_EMAIL') }}"
   roles:
     - config_gcp_disks
     - common
