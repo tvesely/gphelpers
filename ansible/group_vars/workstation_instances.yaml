@@ -1,3 +1,6 @@
+postgres_version: zedstore
+postgres_repo: https://github.com/greenplum-db/postgres
+
 postgres_config:
     databases:
         - {database: 'zedstore', tablespace: 'pg_default', gen_data: True, default_am: 'zedstore'}
