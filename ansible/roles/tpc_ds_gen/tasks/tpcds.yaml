@@ -113,13 +113,16 @@
   register: datasets_result
 - set_fact:
     datasets: 
-      psql_file: "{{item.1.psql_file}}"
-      table: "{{item.1.table}}"
-      datfile: "{{item.0.path + '/' + item.1.table + '_' + item.0.data_segment + '_' + _tpcds_parallelism +'.dat'}}"
-      data_segment: "{{item.0.data_segment}}"
+      psql_file: "{{prelim_datasets_result.psql_file}}"
+      table: "{{prelim_datasets_result.table}}"
+      datfile: "{{datagen_dir.path + '/' + prelim_datasets_result.table + '_' + datagen_dir.data_segment + '_' + _tpcds_parallelism +'.dat'}}"
+      data_segment: "{{datagen_dir.data_segment}}"
+  vars:
+      datagen_dir: "{{ item.1 }}"
+      prelim_datasets_result: "{{ item.0 }}"
   with_nested:
-    - "{{datagen_directories}}"
     - "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
+    - "{{datagen_directories}}"
   register: datasets_result
 - set_fact:
     psql_datasets: "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
