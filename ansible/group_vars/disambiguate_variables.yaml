@@ -37,8 +37,7 @@ postgres_config:
       PATH: "{{ postgres_install_path }}/bin:{{ ansible_env.PATH }}"
 
 # postgres_build
-_p
-postgres_default_config:
+build_postgres_default_config:
     repo: "{{ postgres_repo }}"
     repo_directory: "{{ansible_env.HOME}}/workspace/postgres"
     repo_version: HEAD
@@ -54,12 +53,10 @@ postgres_default_config:
     prefix: "/usr/local/pgsql"
     build_core_count: "{{ build_core_count }}"
 
-postgres_build_settings:
-    enable_cassert: False
-    with_lz4: True
-    cflags: "-O2 -fno-omit-frame-pointer"
+build_postgres_settings:
+    repo_version: zedstore
 
-greenplum_build_settings:
+build_greenplum_settings:
     enable_cassert: False
     with_lz4: True
     cflags: "-O2 -fno-omit-frame-pointer"
