@@ -1,0 +1,14 @@
+postgres_config:
+    databases:
+        - {database: 'zedstore', tablespace: 'pg_default', gen_data: True, default_am: 'zedstore'}
+        - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
+    gucs:
+        - {guc: 'shared_buffers', value: '10GB'}
+        - {guc: 'max_wal_size', value: '1GB'}
+        - {guc: 'checkpoint_flush_after', value: '1MB'}
+        - {guc: 'max_parallel_workers', value: '8'}
+        - {guc: 'max_parallel_maintenance_workers', value: '8'}
+        - {guc: 'maintenance_work_mem', value: '4GB'}
+
+tpcds_config:
+    datagen_scale: 5
