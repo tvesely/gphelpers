@@ -20,7 +20,7 @@
   file:
     path: "{{item.path}}"
     state: directory
-    mode: 0755
+    mode: 0700
     owner: "{{ _postgres_config.postgres_user }}"
   with_items: "{{ _postgres_config.tablespaces }}"
   when: _postgres_config.tablespaces is defined
@@ -31,26 +31,29 @@
   ignore_errors: yes
   with_items: "{{ _postgres_config.databases }}"
 
-- name: Drop tablespaces
-  command: "psql -v ON_ERROR_STOP=1 postgres -c \"drop tablespace {{item.tablespace}}\""
-  ignore_errors: yes
-  with_items: "{{ _postgres_config.tablespaces }}"
-  when: _postgres_config.tablespaces is defined
-
 - name: Create tablespaces
-  command: "psql -v ON_ERROR_STOP=1 postgres -c \"create tablespace {{item.tablespace}} location '{{item.path}}'\""
+  postgresql_tablespace:
+    name: "{{ item.tablespace }}"
+    location: "{{ item.path }}"
+    login_host: localhost
+    login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
+    port: "{{ _postgres_config.postgres_env.PGPORT }}"
+    db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
+    set:
+      random_page_cost: 1
+      seq_page_cost: 1
   with_items: "{{ _postgres_config.tablespaces }}"
-  when: _postgres_config.tablespaces is defined
 
 - name: Create databases
-  command: "createdb {{item.database}} -D {{item.tablespace}}"
-  ignore_errors: yes
+  postgresql_db:
+    name: "{{ item.database }}"
+    tablespace: "{{ item.tablespace }}"
+    login_host: localhost
+    login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
+    port: "{{ _postgres_config.postgres_env.PGPORT }}"
+    maintenance_db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
   with_items: "{{ _postgres_config.databases }}"
 
-- name: Create tpcds schema
-  command: "psql -v ON_ERROR_STOP=1 {{item.database}} -c \"CREATE SCHEMA tpcds;\""
-  with_items: "{{ _postgres_config.databases }}"
-
-- name: Set postgres search path for {{postgres_env.PGUSER}}
-  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{ _postgres_config.postgres_user }} SET search_path=tpcds,public;'"
+- name: Set postgres search path for {{ _postgres_config.postgres_env.PGUSER }}
+  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{ _postgres_config.postgres_env.PGUSER }} SET search_path=tpcds,public;'"
 
