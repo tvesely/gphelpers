@@ -3,5 +3,6 @@
   set_fact:
     _postgres_config: "{{ postgres_default_config | combine(postgres_config, recursive=True) }}"
 
+- include: packages.yaml
 - include: gen_cluster.yaml
   environment: "{{ _postgres_config.postgres_env }}"

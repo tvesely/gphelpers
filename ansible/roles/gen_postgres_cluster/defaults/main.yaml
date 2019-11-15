@@ -7,6 +7,7 @@ postgres_default_config:
     postgres_user: "{{ postgres_user }}"
     postgres_install_path: "{{ postgres_install_path }}"
     postgres_database_path: "{{ postgres_database_path }}"
+    tablespaces: {}
     databases:
         - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
     gucs:

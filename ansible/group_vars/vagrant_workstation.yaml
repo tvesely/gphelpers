@@ -7,3 +7,6 @@ postgres_config:
     databases:
         - {database: 'zedstore', tablespace: 'pg_default', gen_data: True, default_am: 'zedstore'}
         - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
+
+tpcds_config:
+    datagen_scale: 1
