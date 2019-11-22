@@ -5,11 +5,10 @@
     patterns: "*.postgresql.*.sql"
   register: ddl_sql
 
-- name: Execute DDLs for database {{ database.database }}
+- name: Execute DDLs for database {{ database }}
   command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file.path }}"
   environment:
-    PGDATABASE: "{{ database.database }}"
-    PGOPTIONS: '-c default_table_access_method={{ database.default_am }}'
+    PGDATABASE: "{{ database }}"
   with_items: "{{ ddl_sql.files | sort(attribute='path') }}"
   loop_control:
     loop_var: psql_file

@@ -2,21 +2,44 @@ postgres_database_path: "{{ ansible_env.HOME }}/postgres_db"
 
 postgres_config:
     tablespaces:
-        - {tablespace: 'ts_data01', path: '/data01/ts_data01'}
-        - {tablespace: 'ts_data02', path: '/data02/ts_data02'}
-        - {tablespace: 'ts_data03', path: '/data03/ts_data03'}
+         ts_data01:
+             path: /data01/ts_data01
+             tablespace_options:
+                 seq_page_cost: 2.5
+                 random_page_cost: 2.5
+                 effective_io_concurrency: 1
+         ts_data02:
+             path: /data02/ts_data02
+             tablespace_options:
+                 seq_page_cost: 2.5
+                 random_page_cost: 2.5
+                 effective_io_concurrency: 1
+         ts_data03:
+             path: /data03/ts_data03
+             tablespace_options:
+                 seq_page_cost: 2.5
+                 random_page_cost: 2.5
+                 effective_io_concurrency: 1
     databases:
-        - {database: 'zedstore', tablespace: 'ts_data01', gen_data: True, default_am: 'zedstore'}
-        - {database: 'tpcds', tablespace: 'ts_data03', gen_data: True, default_am: 'heap'}
+        zedstore:
+            tablespace: 'ts_data01'
+            configuration_parameters:
+                default_table_access_method: 'zedstore'
+        tpcds:
+            tablespace: 'ts_data03'
     gucs:
-        - {guc: 'shared_buffers', value: '10GB'}
-        - {guc: 'maintenance_work_mem', value: '4GB'}
-        - {guc: 'max_wal_size', value: '1GB'}
-        - {guc: 'checkpoint_flush_after', value: '1MB'}
-        - {guc: 'max_parallel_workers', value: '8'}
-        - {guc: 'max_parallel_maintenance_workers', value: '8'}
-        - {guc: 'effective_cache_size', value: '32GB'}
+        shared_buffers: 4GB
+        max_wal_size: 1GB
+        checkpoint_flush_after: 1MB
+        max_parallel_workers: 8
+        max_parallel_maintenance_workers: 8
+        maintenance_work_mem: 4GB
+        log_statement: all
+        effective_cache_size: 32GB
 
 tpcds_config:
     datagen_path_prefix: /data02/tpcds_datagen
-    datagen_scale: 1
+    datagen_scale: 5
+    databases:
+        - zedstore
+        - tpcds

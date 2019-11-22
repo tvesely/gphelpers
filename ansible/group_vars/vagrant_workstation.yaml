@@ -1,12 +1,38 @@
 ---
 is_vagrant: True
+
 gpdb_config:
     databases:
         - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
 postgres_config:
+    postgres_user: "{{ postgres_user }}"
+    postgres_install_path: "{{ postgres_install_path }}"
+    postgres_database_path: "{{ postgres_database_path }}"
+    tablespaces:
+         tmpspace:
+             path: /tmp/tmpspace
+             tablespace_options:
+                 seq_page_cost: 2.5
+                 random_page_cost: 2.5
+                 effective_io_concurrency: 2
     databases:
-        - {database: 'zedstore', tablespace: 'pg_default', gen_data: True, default_am: 'zedstore'}
-        - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
+        zedstore:
+            tablespace: 'pg_default'
+            configuration_parameters:
+                default_table_access_method: 'zedstore'
+        tpcds:
+            tablespace: 'tmpspace'
+    gucs:
+        shared_buffers: 1GB
+        max_wal_size: 1GB
+        checkpoint_flush_after: 1MB
+        max_parallel_workers: 8
+        max_parallel_maintenance_workers: 2
+        maintenance_work_mem: 1GB
+        log_statement: all
+        effective_cache_size: 4GB
 
 tpcds_config:
     datagen_scale: 1
+    databases:
+        - zedstore

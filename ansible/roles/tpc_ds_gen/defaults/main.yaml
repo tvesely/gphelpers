@@ -32,9 +32,10 @@ tpcds_default_config:
 
     datagen_path_prefix: /tmp/tpcds_datagen
     datagen_scale: 1
+    databases: []
 
 postgres_user: "{{ ansible_env.USER }}"
-postgres_install_path: /usr/local/pgsql/bin
+postgres_install_path: /usr/local/pgsql/
 postgres_database_path: /usr/local/pgsql/data
 
 postgres_default_config:
@@ -57,4 +58,4 @@ postgres_default_config:
       PGDATABASE: postgres
       PGDATA: "{{ postgres_database_path }}"
       PGAPPNAME: tpcds_datagen
-      PATH: "{{ postgres_install_path }}:{{ ansible_env.PATH }}"
+      PATH: "{{ postgres_install_path }}/bin:{{ ansible_env.PATH }}"

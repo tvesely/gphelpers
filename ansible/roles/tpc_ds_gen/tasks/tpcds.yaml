@@ -75,9 +75,8 @@
   vars:
     database: "{{item}}"
   include_tasks: create_ddls.yaml
-  when: item.gen_data
   with_items:
-    - "{{ _postgres_config.databases }}"
+    - "{{ _tpcds_config.databases }}"
 
 - name: Wait for tpc-dh datagen to finish
   async_status:
@@ -130,12 +129,11 @@
 # TODO: do not exceed max_connections
 - name: Load data in batches of 24
   vars:
-    database: "{{item[0].database}}"
-    batch: "{{item[1]}}"
+    database: "{{ item[0] }}"
+    batch: "{{ item[1] }}"
   include_tasks: load_data_batch.yaml
-  when: item[0].gen_data
   with_items:
-    - "{{ _postgres_config.databases | product(psql_datasets | batch(24) | list) | list }}"
+    - "{{ _tpcds_config.databases | product(psql_datasets | batch(24) | list) | list }}"
 
 - name: Get index DDLs
   find:
@@ -149,18 +147,16 @@
     file: "{{item[1].path}}"
   command: "psql -v ON_ERROR_STOP=1 -f {{file}}"
   environment:
-    PGDATABASE: "{{database.database}}"
-  when: database.gen_data
-  loop: "{{ _postgres_config.databases | product( index_sql.files ) | list }}"
+    PGDATABASE: "{{ database }}"
+  loop: "{{ _tpcds_config.databases | product( index_sql.files ) | list }}"
 
 - name: Analyze databases
   command: psql -v ON_ERROR_STOP=1 -c 'ANALYZE;'
   environment:
-    PGDATABASE: "{{database.database}}"
-  when: database.gen_data
+    PGDATABASE: "{{ database }}"
   loop_control:
     loop_var: database
-  with_items: "{{ _postgres_config.databases }}"
+  with_items: "{{ _tpcds_config.databases }}"
 
 - name: Re-enable autovacuum
   command: "psql postgres -v ON_ERROR_STOP=1 -c \"ALTER SYSTEM SET autovacuum TO 'on';\""

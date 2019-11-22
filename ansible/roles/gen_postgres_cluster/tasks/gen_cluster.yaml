@@ -10,49 +10,73 @@
     creates: "{{ _postgres_config.postgres_database_path }}/postmaster.pid"
 
 - name: Set system GUCS
-  command: "psql postgres -c \"ALTER SYSTEM SET {{item.guc}} TO '{{item.value}}';\""
-  with_items: "{{ _postgres_config.gucs }}"
+  command: "psql postgres -c \"ALTER SYSTEM SET {{ item.key }} TO '{{ item.value }}';\""
+  with_dict: "{{ _postgres_config.gucs }}"
 
 - name: Restart database
   command: "pg_ctl -l /tmp/logfile restart"
 
 - name: Create tablespace directories
   file:
-    path: "{{item.path}}"
+    path: "{{ path }}"
     state: directory
     mode: 0700
     owner: "{{ _postgres_config.postgres_user }}"
-  with_items: "{{ _postgres_config.tablespaces }}"
+  with_dict: "{{ _postgres_config.tablespaces }}"
+  vars:
+      path: "{{ item.value.path }}"
   when: _postgres_config.tablespaces is defined
   become: yes
 
 - name: Drop databases
-  command: "dropdb {{item.database}}"
+  command: "dropdb {{ database }}"
   ignore_errors: yes
-  with_items: "{{ _postgres_config.databases }}"
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
 
 - name: Create tablespaces
   postgresql_tablespace:
-    name: "{{ item.tablespace }}"
-    location: "{{ item.path }}"
+    name: "{{ tablespace }}"
+    location: "{{ path }}"
     login_host: localhost
     login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
     port: "{{ _postgres_config.postgres_env.PGPORT }}"
     db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
-    set:
-      random_page_cost: 1
-      seq_page_cost: 1
-  with_items: "{{ _postgres_config.tablespaces }}"
+    set: "{{ tablespace_options }}"
+  with_dict: "{{ _postgres_config.tablespaces }}"
+  vars:
+      tablespace: "{{ item.key }}"
+      path: "{{ item.value.path }}"
+      tablespace_options: "{{ item.value.tablespace_options | default({}) }}"
 
 - name: Create databases
   postgresql_db:
-    name: "{{ item.database }}"
-    tablespace: "{{ item.tablespace }}"
+    name: "{{ database }}"
+    tablespace: "{{ tablespace }}"
     login_host: localhost
     login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
     port: "{{ _postgres_config.postgres_env.PGPORT }}"
     maintenance_db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
-  with_items: "{{ _postgres_config.databases }}"
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
+      tablespace: "{{ item.value.tablespace | default('pg_default') }}"
+
+- name: Set per-database settings
+  debug:
+      msg: "configuration_parameters: {{configuration_parameters}} database: {{database}}"
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
+      configuration_parameters: "{{ item.value.configuration_parameters | default({}) }}"
+
+- name: Set per-database settings
+  include: set_database_configuration.yaml
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
+      configuration_parameters: "{{ item.value.configuration_parameters | default({}) }}"
 
 - name: Set postgres search path for {{ _postgres_config.postgres_env.PGUSER }}
   command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{ _postgres_config.postgres_env.PGUSER }} SET search_path=tpcds,public;'"
