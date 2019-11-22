@@ -1,11 +1,28 @@
 ---
+- name: Find table load DDL
+  find:
+    paths: "{{ _tpcds_config.tpcds_path }}/04_load/"
+    patterns: "*.postgresql.{{ table }}.sql"
+  register: load_ddl
+- name: Find table dat files
+  find:
+    paths: "{{ _datagen_path }}"
+    recurse: true
+    patterns: "*{{ table }}*"
+  register: datfiles
+
 - name: Data load batch for database {{database}}
-  command: "psql -v ON_ERROR_STOP=1 -f {{psql_command.psql_file}} -v filename=\"'{{psql_command.datfile}}'\""
+  command: "psql -v ON_ERROR_STOP=1 -f {{ ddl }} -v filename=\"'{{ datfile }}'\""
   async: 86400
   poll: 0
   environment:
       PGDATABASE: "{{database}}"
-  loop: "{{ batch }}"
+  with_nested:
+      - "{{ load_ddl.files }}"
+      - "{{ datfiles.files }}"
+  vars:
+      ddl: "{{ psql_command.0.path }}"
+      datfile: "{{ psql_command.1.path }}"
   loop_control:
     loop_var: "psql_command"
   register: async_results

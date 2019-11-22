@@ -98,42 +98,15 @@
   command: "psql postgres -v ON_ERROR_STOP=1 -c \"ALTER SYSTEM SET autovacuum TO 'off';\""
 - command: "pg_ctl reload"
 
-- name: Prepare tpc-ds batches
-  find:
-    paths: "{{ _tpcds_config.tpcds_path }}/04_load/"
-    patterns: "*.postgresql.*.sql"
-  register: load_sql
-- set_fact:
-    datasets: 
-      psql_file: "{{ item.path }}"
-      table: "{{ item.path | regex_replace('^.*/\\d+\\.\\w+\\.([\\w_]+)\\.sql', '\\1')}}"
-  with_items:
-    - "{{ load_sql.files }}"
-  register: datasets_result
-- set_fact:
-    datasets: 
-      psql_file: "{{prelim_datasets_result.psql_file}}"
-      table: "{{prelim_datasets_result.table}}"
-      datfile: "{{datagen_dir.path + '/' + prelim_datasets_result.table + '_' + datagen_dir.data_segment + '_' + _tpcds_parallelism +'.dat'}}"
-      data_segment: "{{datagen_dir.data_segment}}"
-  vars:
-      datagen_dir: "{{ item.1 }}"
-      prelim_datasets_result: "{{ item.0 }}"
-  with_nested:
-    - "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
-    - "{{datagen_directories}}"
-  register: datasets_result
-- set_fact:
-    psql_datasets: "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
-
 # TODO: do not exceed max_connections
-- name: Load data in batches of 24
+- name: Load table data
   vars:
     database: "{{ item[0] }}"
-    batch: "{{ item[1] }}"
+    table: "{{ item[1] }}"
   include_tasks: load_data_batch.yaml
-  with_items:
-    - "{{ _tpcds_config.databases | product(psql_datasets | batch(24) | list) | list }}"
+  with_nested:
+    - "{{ _tpcds_config.databases }}"
+    - "{{ tpcds_tables }}"
 
 - name: Get index DDLs
   find:
