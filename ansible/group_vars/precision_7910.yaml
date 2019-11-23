@@ -28,7 +28,7 @@ postgres_config:
         tpcds:
             tablespace: 'ts_data03'
     gucs:
-        shared_buffers: 4GB
+        shared_buffers: 10GB
         max_wal_size: 1GB
         checkpoint_flush_after: 1MB
         max_parallel_workers: 8

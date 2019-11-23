@@ -5,17 +5,21 @@
     creates: "{{ _postgres_config.postgres_database_path }}/postgresql.conf"
 
 - name: Start database
-  command: "pg_ctl -l /tmp/logfile start"
+  command: "pg_ctl -w -l /tmp/logfile start"
   args:
     creates: "{{ _postgres_config.postgres_database_path }}/postmaster.pid"
 
 - name: Set system GUCS
-  command: "psql postgres -c \"ALTER SYSTEM SET {{ item.key }} TO '{{ item.value }}';\""
+  postgresql_set:
+      name: "{{ item.key }}"
+      value: "{{ item.value }}"
+      login_host: localhost
+      login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
+      port: "{{ _postgres_config.postgres_env.PGPORT }}"
+      db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
+  notify: Restart Postgres
   with_dict: "{{ _postgres_config.gucs }}"
-
-- name: Restart database
-  command: "pg_ctl -l /tmp/logfile restart"
-
+  
 - name: Create tablespace directories
   file:
     path: "{{ path }}"
@@ -81,3 +85,5 @@
 - name: Set postgres search path for {{ _postgres_config.postgres_env.PGUSER }}
   command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{ _postgres_config.postgres_env.PGUSER }} SET search_path=tpcds,public;'"
 
+- name: Flush handlers
+  meta: flush_handlers

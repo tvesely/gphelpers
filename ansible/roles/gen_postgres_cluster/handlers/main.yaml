@@ -1,0 +1,4 @@
+---
+- name: Restart Postgres
+  command: "pg_ctl -w -l /tmp/logfile restart"
+  environment: "{{ _postgres_config.postgres_env }}"
