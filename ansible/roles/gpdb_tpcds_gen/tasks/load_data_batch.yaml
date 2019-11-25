@@ -1,16 +1,16 @@
 ---
-- name: Data load batch for database {{database}}
+- name: Data load batch for database {{ database }}
   command: "psql -v ON_ERROR_STOP=1 -f {{psql_command.psql_file}} -v filename=\"'{{psql_command.datfile}}'\""
   async: 86400
   poll: 0
   environment:
-      PGDATABASE: "{{database}}"
+      PGDATABASE: "{{ database }}"
   loop: "{{ batch }}"
   loop_control:
     loop_var: "psql_command"
   register: async_results
 
-- name: Wait {{database}} batch complete
+- name: Wait {{ database }} batch complete
   async_status:
     jid: "{{ async_result_item.ansible_job_id }}"
   loop: "{{ async_results.results }}"

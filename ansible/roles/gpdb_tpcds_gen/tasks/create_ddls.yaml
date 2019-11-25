@@ -1,14 +1,14 @@
 ---
 - name: Find DDL files
   find:
-    path: "{{  _tpcds_config.tpcds_path }}/03_ddl/"
+    path: "{{  _gpdb_tpcds_config.tpcds_path }}/03_ddl/"
     patterns: "*.gpdb.*.sql"
   register: ddl_sql
 
-- name: Execute DDLs for database {{ database.database }}
+- name: Execute DDLs for database {{ database }}
   command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file.path }} -v SMALL_STORAGE='appendonly=false' -v MEDIUM_STORAGE='appendonly=false' -v LARGE_STORAGE='appendonly=false' -v DISTRIBUTED_BY='distributed randomly'"
   environment:
-    PGDATABASE: "{{ database.database }}"
+    PGDATABASE: "{{ database }}"
   with_items: "{{ ddl_sql.files | sort(attribute='path') }}"
   loop_control:
     loop_var: psql_file

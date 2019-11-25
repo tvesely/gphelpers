@@ -39,7 +39,12 @@ postgres_config:
 
 tpcds_config:
     datagen_path_prefix: /data02/tpcds_datagen
-    datagen_scale: 5
+    datagen_scale: 1
     databases:
         - zedstore
+        - tpcds
+
+gpdb_tpcds_config:
+    datagen_scale: 1
+    databases:
         - tpcds

@@ -1,9 +1,6 @@
 ---
 is_vagrant: True
 
-gpdb_config:
-    databases:
-        - {database: 'tpcds', tablespace: 'pg_default', gen_data: True, default_am: 'heap'}
 postgres_config:
     postgres_user: "{{ postgres_user }}"
     postgres_install_path: "{{ postgres_install_path }}"
@@ -36,3 +33,8 @@ tpcds_config:
     datagen_scale: 1
     databases:
         - zedstore
+
+gpdb_tpcds_config:
+    datagen_scale: 1
+    databases:
+        - tpcds
