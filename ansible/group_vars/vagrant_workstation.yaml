@@ -18,7 +18,7 @@ postgres_config:
             configuration_parameters:
                 default_table_access_method: 'zedstore'
         tpcds:
-            tablespace: 'tmpspace'
+            tablespace: 'pg_default'
     gucs:
         shared_buffers: 1GB
         max_wal_size: 1GB
