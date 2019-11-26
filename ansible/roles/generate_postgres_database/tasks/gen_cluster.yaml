@@ -82,8 +82,5 @@
       database: "{{ item.key }}"
       configuration_parameters: "{{ item.value.configuration_parameters | default({}) }}"
 
-- name: Set postgres search path for {{ _postgres_config.postgres_env.PGUSER }}
-  command: "psql -v ON_ERROR_STOP=1 -q -A -t -c 'ALTER USER {{ _postgres_config.postgres_env.PGUSER }} SET search_path=tpcds,public;'"
-
 - name: Flush handlers
   meta: flush_handlers

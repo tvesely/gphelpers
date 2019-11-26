@@ -138,6 +138,6 @@
     - dev_tools
     - postgres_dev
     - build_postgres
-    - gen_postgres_cluster
-    - tpc_ds_gen
+    - generate_postgres_database
+    - load_tpcds_data
 

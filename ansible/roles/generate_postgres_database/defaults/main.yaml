@@ -18,14 +18,8 @@ postgres_default_config:
         #        tablespace: 'pg_default'
         #        configuration_parameters:
         #            default_table_access_method: 'zedstore'
-    gucs:
-        shared_buffers: 1GB
-        max_wal_size: 1GB
-        checkpoint_flush_after: 1MB
-        max_parallel_workers: 8
-        max_parallel_maintenance_workers: 2
-        maintenance_work_mem: 1GB
-        log_statement: all
+    gucs: {}
+        # shared_buffers: 1GB
     postgres_env:
       PGPORT: 5432
       PGUSER: "{{ postgres_user }}"

@@ -1,0 +1,5 @@
+---
+tpcds_config:
+    datagen_scale: 1
+    databases:
+        - postgres

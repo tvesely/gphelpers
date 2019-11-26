@@ -1,7 +1,7 @@
 ---
 - name: Set variables
   set_fact:
-    _postgres_config: "{{ postgres_default_config | combine(postgres_config, recursive=True) }}"
+    _postgres_config: "{{ postgres_default_config | combine(postgres_config | default({}), recursive=True) }}"
 
 - include: packages.yaml
 - include: gen_cluster.yaml

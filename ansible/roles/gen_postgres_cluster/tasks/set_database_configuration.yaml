@@ -1,5 +1,0 @@
----
-- command: "psql postgres -c \"ALTER DATABASE {{ database }} SET {{ config.key }} TO '{{ config.value }}';\""
-  loop_control:
-      loop_var: config
-  with_dict: "{{ configuration_parameters }}"
