@@ -1,11 +1,13 @@
 ---
+datagen_scale: 1
+
 tpcds_default_config:
     tpcds_repo: https://github.com/tvesely/TPC-DS
     tpcds_version: master
     tpcds_path: "{{ ansible_env.HOME }}/workspace/TPC-DS"
 
     datagen_path_prefix: /tmp/tpcds_datagen
-    datagen_scale: 1
+    datagen_scale: {{ datagen_scale }}
     databases: []
     tpcds_tables:
       - "call_center"
