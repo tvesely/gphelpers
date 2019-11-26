@@ -106,7 +106,7 @@
   include_tasks: load_data_batch.yaml
   with_nested:
     - "{{ _tpcds_config.databases }}"
-    - "{{ tpcds_tables }}"
+    - "{{ _tpcds_config.tpcds_tables }}"
 
 - name: Get index DDLs
   find:

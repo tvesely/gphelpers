@@ -8,7 +8,7 @@
   find:
     paths: "{{ _datagen_path }}"
     recurse: true
-    patterns: "*{{ table }}*"
+    patterns: "*{{ table }}_[0-9]*.dat"
   register: datfiles
 
 - name: Data load batch for database {{database}}
