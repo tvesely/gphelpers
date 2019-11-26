@@ -1,4 +1,6 @@
 ---
+datagen_scale: 1
+
 postgres_config:
     databases:
         zedstore:
@@ -12,7 +14,6 @@ postgres_config:
                 search_path: 'tpcds, \"$user\", public'
 
 tpcds_config:
-    datagen_scale: 1
     databases:
         - zedstore
         - tpcds

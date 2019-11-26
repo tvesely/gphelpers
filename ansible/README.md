@@ -1,39 +1,50 @@
-# What it does:
+# TPC-DS data loading for Postgres
 
-The playbook `tpc-ds.yaml` runs two tasks, gen_postgres_cluster and
-tpc_ds_gen.gen_postgres_cluster starts a postgres cluster, creates
-user-specified
+The playbook `tpc-ds.yaml` runs two ansible roles, generate_postgres_database and
+load_tpcds_data. 
 
-tablespaces and databases, and sets GUCs.tpc_ds_gen currently generate data
-with the user specified scale and load the data into the databases.#
+## [generate_postgres_database](roles/generate_postgres_database)
 
-Prerequisites:
+ * Initializes a Postgres at `postgres_install_path` if it does not already exist.
+ * If defined by the group_vars, creates user-specified tablespaces and databases
+ * Sets gucs defined by group_vars
 
-ansible 2.9.0+
+See the [README](roles/generate_postgres_database/README.md) for more details.
+
+## [load_tpcds_data](roles/load_tpcds_data)
+
+ * Generates TPC-DS data with the user specified scale
+ * Loads the data into the databases specified by the group_vars
+
+See the [README](roles/load_tpcds_data/README.md) for more details.
+
+## Prerequisites:
+
+ * ansible 2.9.0+
+ * Postgres 12.x +
+
+## Quick start:
 
 ```shell
 pip install ansible
 ```
 
-Postgres 12.x +
-
-Quick start:
-
 Just run this to load TPC-DS data into the `postgres` database:
 
 ```shell
-ansible-playbook -e @group_vars/minimal_config.yaml -e postgres_install_path=</path/to/postgres/installation> -e postgres_database_path=</path/to/postgres/data/directory> -e datagen_scale=<tpcds data generation scale factor> -e postgres_user=<postgres user> tpc-ds.yaml
+ansible-playbook --ask-become-pass -e @group_vars/minimal_config.yaml -e postgres_install_path=</path/to/postgres/installation> -e postgres_database_path=</path/to/postgres/data/directory> -e datagen_scale=<tpcds data generation scale factor> -e postgres_user=<postgres user> tpc-ds.yaml
 ```
 
-If you are comparing zedstore with heap storage, first compile and install [zedstore branch](https://github.com/greenplum-db/postgres/tree/zedstore) and invoke ansible with the following command:
+If you are comparing zedstore with heap storage, first compile and install Postgres using the [zedstore branch](https://github.com/greenplum-db/postgres/tree/zedstore) then invoke ansible with the following command:
 
 ```shell
-ansible-playbook -e @group_vars/minimal_zedstore.yaml -e postgres_install_path=</path/to/postgres/installation> -e postgres_database_path=</path/to/postgres/data/directory> -e datagen_scale=<tpcds data generation scale factor> -e postgres_user=<postgres user> tpc-ds.yaml
+ansible-playbook --ask-become-pass -e @group_vars/minimal_zedstore.yaml -e postgres_install_path=</path/to/postgres/installation> -e postgres_database_path=</path/to/postgres/data/directory> -e datagen_scale=<tpcds data generation scale factor> -e postgres_user=<postgres user> tpc-ds.yaml
 ```
-
 
 More detailed configurations can be found in the following locations:
 
 [group_vars/vagrant_workstation.yaml](group_vars/vagrant_workstation.yaml)
+
 [group_vars/precision_7910.yaml](group_vars/precision_7910.yaml)
+
 [group_vars/precision_3431.yaml](group_vars/precision_3431.yaml)
