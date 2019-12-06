@@ -4,8 +4,11 @@ postgres_config:
             tablespace: 'pg_default'
             configuration_parameters:
                 default_table_access_method: 'zedstore'
+                search_path: 'tpcds, \"$user\", public'
         tpcds:
             tablespace: 'pg_default'
+            configuration_parameters:
+                search_path: 'tpcds, \"$user\", public'
     gucs:
         shared_buffers: 10GB
         max_wal_size: 1GB
@@ -17,7 +20,11 @@ postgres_config:
         effective_cache_size: 32GB
 
 tpcds_config:
-    datagen_scale: 5
+    datagen_scale: 2
     databases:
         - zedstore
         - tpcds
+    tpcds_tables:
+        - inventory
+        - customer_demographics
+        - date_dim
