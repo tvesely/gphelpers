@@ -48,3 +48,27 @@ More detailed configurations can be found in the following locations:
 [group_vars/precision_7910.yaml](group_vars/precision_7910.yaml)
 
 [group_vars/precision_3431.yaml](group_vars/precision_3431.yaml)
+
+
+## Provosion a GCP workstaion with a Postgres database
+
+Edit file /etc/ansible/ansible.cfg to include roles from the [envsetup repo](https://github.com/dreddor/envsetup/tree/tpc-ds-gen)
+```
+# Paths to search for roles, colon separated
+roles_path = ~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/deployments/envsetup/roles
+```
+
+Set some env variables, refer to [set-secrets.sh.template](set-secrets.sh.template)
+```
+source set-secrets.sh
+```
+
+Run ansible playbook from the Makefile
+```
+make
+```
+
+To destroy the workstation
+```
+make clean
+```
