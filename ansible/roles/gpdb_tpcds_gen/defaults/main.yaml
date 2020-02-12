@@ -6,6 +6,7 @@ gpdb_tpcds_default_config:
 
     datagen_path_prefix: /tmp/tpcds_datagen
     datagen_scale: 1
+    gpfdist_start_port: 2300
     databases: []
     tpcds_tables:
       - "call_center"

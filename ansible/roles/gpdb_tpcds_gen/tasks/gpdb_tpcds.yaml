@@ -34,9 +34,7 @@
   file:
     path: "{{ _datagen_path }}"
     state: directory
-    owner: "{{ _gpdb_config.gpdb_user }}"
     mode: 0755
-  become: true
 
 - name: Generate tpc-ds datagen path names
   set_fact: path_item="{{item}}"
@@ -44,12 +42,13 @@
   register: path_result
 - set_fact:
     path_item:
+      gpfdist_port: "{{ item.0 + _gpdb_tpcds_config.gpfdist_start_port }}"
       data_segment: "{{item.0+1}}"
       path: "{{item.1}}"
   with_indexed_items: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
   register: path_result
 - set_fact:
-    datagen_directories: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
+    datagen_directories: "{{ path_result.results | map(attribute='ansible_facts.path_item') | list }}"
 
 - name: Run tpc-ds data generation with scale {{ _gpdb_tpcds_config.datagen_scale }} with parallelism {{ _tpcds_parallelism }}
   command: "{{ _gpdb_tpcds_config.tpcds_path }}/01_gen_data/generate_data.sh {{ _gpdb_tpcds_config.datagen_scale }} {{ item.data_segment }} {{ _tpcds_parallelism }} {{ item.path }}"
@@ -61,6 +60,36 @@
   poll: 0
   register: _create_instances
 
+- name: Drop databases
+  command: "dropdb {{ database }}"
+  ignore_errors: yes
+  with_items: "{{ _gpdb_tpcds_config.databases }}"
+  loop_control:
+    loop_var: database
+
+- name: Create databases
+  postgresql_db:
+    name: "{{ database }}"
+    login_host: localhost
+    login_user: "{{ _gpdb_tpcds_config.gpdb_env.PGUSER }}"
+    port: "{{ _gpdb_tpcds_config.gpdb_env.PGPORT }}"
+    maintenance_db: "{{ _gpdb_tpcds_config.gpdb_env.PGDATABASE }}"
+  with_items: "{{ _gpdb_tpcds_config.databases }}"
+  loop_control:
+    loop_var: database
+
+- name: Create tpcds schema
+  command :  "psql -v ON_ERROR_STOP=1 {{ database }} -c 'CREATE SCHEMA tpcds;'"
+  with_items: "{{ _gpdb_tpcds_config.databases }}"
+  loop_control:
+    loop_var: database
+
+- name: Create ext_tpcds schema
+  command :  "psql -v ON_ERROR_STOP=1 {{ database }} -c 'CREATE SCHEMA ext_tpcds;'"
+  with_items: "{{ _gpdb_tpcds_config.databases }}"
+  loop_control:
+    loop_var: database
+
 - name: Generate tcp-ds query0.sql
   command: "{{ _gpdb_tpcds_config.tpcds_path }}/00_compile_tpcds/tools/dsqgen -input {{ _gpdb_tpcds_config.tpcds_path }}/00_compile_tpcds/query_templates/templates.lst -directory {{ _gpdb_tpcds_config.tpcds_path }}/00_compile_tpcds/query_templates -output {{ _gpdb_tpcds_config.tpcds_path }}/01_gen_data/ -dialect pivotal -scale {{ _gpdb_tpcds_config.datagen_scale }} -verbose y"
   args:
@@ -71,12 +100,21 @@
   args:
     chdir: "{{ _gpdb_tpcds_config.tpcds_path }}/00_compile_tpcds/tools/"
 
+- name: Get gpfdist host
+  command :  "psql -v ON_ERROR_STOP=1 -t -A -c 'select inet_client_addr();'"
+  register: hostname_cmd
+- set_fact:
+    _gpfdist_host: "{{ hostname_cmd.stdout }}"
+
 - name: Create DDLs
   vars:
-    database: "{{item}}"
+    database: "{{ item.0 }}"
+    table: "{{ item.1 }}"
+    gpfdist_host: "{{ _gpfdist_host }}"
   include_tasks: create_ddls.yaml
-  with_items:
+  with_nested:
     - "{{ _gpdb_tpcds_config.databases }}"
+    - "{{ _gpdb_tpcds_config.tpcds_tables }}"
 
 - name: Wait for tpc-dh datagen to finish
   async_status:
@@ -92,10 +130,22 @@
     path: "{{ _datagen_path }}/datagen_done"
     state: touch
 
+- name: Stop gpfdist
+  command: "{{ _gpdb_tpcds_config.tpcds_path }}/04_load/stop_gpfdist.sh"
+
+- name: Start gpfdist
+  command: "{{ _gpdb_tpcds_config.tpcds_path }}/04_load/start_gpfdist.sh {{ datagen.gpfdist_port }} {{ datagen.path }}"
+  args:
+    chdir: "/tmp/"
+  with_items: "{{ datagen_directories }}"
+  loop_control:
+    loop_var: datagen
+
 - name: Prepare tpc-ds batches
   find:
     paths: "{{ _gpdb_tpcds_config.tpcds_path }}/04_load/"
-    patterns: "*.postgresql.*.sql"
+    use_regex: yes
+    patterns: "^.*.gpdb.({{ _gpdb_tpcds_config.tpcds_tables | join('|') }}).sql"
   register: load_sql
 - set_fact:
     datasets: 
@@ -105,23 +155,16 @@
     - "{{ load_sql.files }}"
   register: datasets_result
 - set_fact:
-    datasets: 
-      psql_file: "{{item.1.psql_file}}"
-      table: "{{item.1.table}}"
-      datfile: "{{item.0.path + '/' + item.1.table + '_' + item.0.data_segment + '_' + _tpcds_parallelism +'.dat'}}"
-      data_segment: "{{item.0.data_segment}}"
-  with_nested:
-    - "{{datagen_directories}}"
-    - "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
-  register: datasets_result
-- set_fact:
     psql_datasets: "{{ datasets_result.results | map(attribute='ansible_facts.datasets') | list}}"
 
 # TODO: do not exceed max_connections
-- name: Load data in batches of 24
+- name: Load data in batches of 5
   vars:
     database: "{{ item[0] }}"
     batch: "{{ item[1] }}"
   include_tasks: load_data_batch.yaml
   with_items:
-    - "{{ _gpdb_tpcds_config.databases | product(psql_datasets | batch(24) | list) | list }}"
+    - "{{ _gpdb_tpcds_config.databases | product(psql_datasets | batch(5) | list) | list }}"
+
+- name: Stop gpfdist
+  command: "{{ _gpdb_tpcds_config.tpcds_path }}/04_load/stop_gpfdist.sh"

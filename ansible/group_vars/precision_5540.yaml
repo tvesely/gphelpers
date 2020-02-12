@@ -1,0 +1,39 @@
+postgres_database_path: "{{ ansible_env.HOME }}/postgres_db"
+
+postgres_config:
+    tablespaces:
+    databases:
+        tpcds:
+            configuration_parameters:
+                search_path: 'tpcds, \"$user\", public'
+    gucs:
+        shared_buffers: 10GB
+        max_wal_size: 1GB
+        checkpoint_flush_after: 1MB
+        max_parallel_workers: 8
+        max_parallel_maintenance_workers: 8
+        maintenance_work_mem: 4GB
+        log_statement: all
+        effective_cache_size: 32GB
+
+tpcds_config:
+    datagen_path_prefix: /data02/tpcds_datagen
+    datagen_scale: 1
+    databases:
+        - zedstore
+        - tpcds
+
+gpdb_install_path: /usr/local/gpdb5
+
+gpdb_tpcds_config:
+    datagen_scale: 1
+    databases:
+      - tpcds
+    gpdb_env:
+      PGPORT: 15432
+      PGUSER: gpadmin
+      PGDATABASE: gpadmin
+      PGAPPNAME: tpcds_datagen
+      PGHOST: localhost
+      PATH: "{{ gpdb_install_path }}/bin:{{ ansible_env.PATH }}"
+
