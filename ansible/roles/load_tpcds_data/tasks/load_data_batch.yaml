@@ -1,0 +1,38 @@
+---
+- name: Find table load DDL
+  find:
+    paths: "{{ _tpcds_config.tpcds_path }}/04_load/"
+    patterns: "*.postgresql.{{ table }}.sql"
+  register: load_ddl
+- name: Find table dat files
+  find:
+    paths: "{{ _datagen_path }}"
+    recurse: true
+    patterns: "*{{ table }}_[0-9]*.dat"
+  register: datfiles
+
+- name: Data load batch for database {{database}}
+  command: "psql -v ON_ERROR_STOP=1 -f {{ ddl }} -v filename=\"'{{ datfile }}'\""
+  async: 86400
+  poll: 0
+  environment:
+      PGDATABASE: "{{database}}"
+  with_nested:
+      - "{{ load_ddl.files }}"
+      - "{{ datfiles.files }}"
+  vars:
+      ddl: "{{ psql_command.0.path }}"
+      datfile: "{{ psql_command.1.path }}"
+  loop_control:
+    loop_var: "psql_command"
+  register: async_results
+
+- name: Wait {{database}} batch complete
+  async_status:
+    jid: "{{ async_result_item.ansible_job_id }}"
+  loop: "{{ async_results.results }}"
+  loop_control:
+    loop_var: "async_result_item"
+  register: async_poll_results
+  until: async_poll_results.finished
+  retries: 3600

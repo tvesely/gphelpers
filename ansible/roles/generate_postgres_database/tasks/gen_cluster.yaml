@@ -1,0 +1,86 @@
+---
+- name: Build database
+  command: "initdb"
+  args:
+    creates: "{{ _postgres_config.postgres_database_path }}/postgresql.conf"
+
+- name: Start database
+  command: "pg_ctl -w -l /tmp/logfile start"
+  args:
+    creates: "{{ _postgres_config.postgres_database_path }}/postmaster.pid"
+
+- name: Set system GUCS
+  postgresql_set:
+      name: "{{ item.key }}"
+      value: "{{ item.value }}"
+      login_host: localhost
+      login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
+      port: "{{ _postgres_config.postgres_env.PGPORT }}"
+      db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
+  notify: Restart Postgres
+  with_dict: "{{ _postgres_config.gucs }}"
+  
+- name: Create tablespace directories
+  file:
+    path: "{{ path }}"
+    state: directory
+    mode: 0700
+    owner: "{{ _postgres_config.postgres_user }}"
+  with_dict: "{{ _postgres_config.tablespaces }}"
+  vars:
+      path: "{{ item.value.path }}"
+  when: _postgres_config.tablespaces is defined
+  become: yes
+
+- name: Drop databases
+  command: "dropdb {{ database }}"
+  ignore_errors: yes
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
+
+- name: Create tablespaces
+  postgresql_tablespace:
+    name: "{{ tablespace }}"
+    location: "{{ path }}"
+    login_host: localhost
+    login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
+    port: "{{ _postgres_config.postgres_env.PGPORT }}"
+    db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
+    set: "{{ tablespace_options }}"
+  with_dict: "{{ _postgres_config.tablespaces }}"
+  vars:
+      tablespace: "{{ item.key }}"
+      path: "{{ item.value.path }}"
+      tablespace_options: "{{ item.value.tablespace_options | default({}) }}"
+
+- name: Create databases
+  postgresql_db:
+    name: "{{ database }}"
+    tablespace: "{{ tablespace }}"
+    login_host: localhost
+    login_user: "{{ _postgres_config.postgres_env.PGUSER }}"
+    port: "{{ _postgres_config.postgres_env.PGPORT }}"
+    maintenance_db: "{{ _postgres_config.postgres_env.PGDATABASE }}"
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
+      tablespace: "{{ item.value.tablespace | default('pg_default') }}"
+
+- name: Set per-database settings
+  debug:
+      msg: "configuration_parameters: {{configuration_parameters}} database: {{database}}"
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
+      configuration_parameters: "{{ item.value.configuration_parameters | default({}) }}"
+
+- name: Set per-database settings
+  include: set_database_configuration.yaml
+  with_dict: "{{ _postgres_config.databases }}"
+  vars:
+      database: "{{ item.key }}"
+      configuration_parameters: "{{ item.value.configuration_parameters | default({}) }}"
+
+- name: Flush handlers
+  meta: flush_handlers

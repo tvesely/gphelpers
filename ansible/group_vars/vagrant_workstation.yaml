@@ -1,0 +1,30 @@
+---
+is_vagrant: True
+
+postgres_config:
+    databases:
+        zedstore:
+            tablespace: 'pg_default'
+            configuration_parameters:
+                default_table_access_method: 'zedstore'
+                search_path: 'tpcds, \"$user\", public'
+        tpcds:
+            tablespace: 'pg_default'
+            configuration_parameters:
+                search_path: 'tpcds, \"$user\", public'
+    gucs:
+        shared_buffers: 1GB
+        checkpoint_flush_after: 1MB
+        maintenance_work_mem: 1GB
+        log_statement: all
+
+tpcds_config:
+    datagen_scale: 1
+    databases:
+        - zedstore
+        - tpcds
+
+gpdb_tpcds_config:
+    datagen_scale: 1
+    databases:
+        - tpcds

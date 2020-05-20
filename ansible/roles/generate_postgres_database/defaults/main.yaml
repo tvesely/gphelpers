@@ -1,0 +1,29 @@
+---
+postgres_user: "{{ ansible_env.USER }}"
+postgres_install_path: /usr/local/pgsql/
+postgres_database_path: /usr/local/pgsql/data
+
+postgres_default_config:
+    postgres_user: "{{ postgres_user }}"
+    postgres_install_path: "{{ postgres_install_path }}"
+    postgres_database_path: "{{ postgres_database_path }}"
+    tablespaces: {}
+    #     tmpspace: /tmp/tmpspace
+    #     tablespace_options:
+    #         seq_page_cost: 2.5
+    #             random_page_cost: 2.5
+    #             effective_io_concurrency: 2
+    databases: {}
+        #    zedstore:
+        #        tablespace: 'pg_default'
+        #        configuration_parameters:
+        #            default_table_access_method: 'zedstore'
+    gucs: {}
+        # shared_buffers: 1GB
+    postgres_env:
+      PGPORT: 5432
+      PGUSER: "{{ postgres_user }}"
+      PGDATABASE: postgres
+      PGDATA: "{{ postgres_database_path }}"
+      PGAPPNAME: tpcds_datagen
+      PATH: "{{ postgres_install_path }}/bin:{{ ansible_env.PATH }}"

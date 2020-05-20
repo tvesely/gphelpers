@@ -1,0 +1,8 @@
+---
+# Required for the postgres modules used later in this role
+- name: Install psycopg2
+  apt:
+    name: "python-psycopg2"
+    state: present
+    update_cache: yes
+  become: yes

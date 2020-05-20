@@ -1,0 +1,36 @@
+---
+datagen_scale: 1
+
+tpcds_default_config:
+    tpcds_repo: https://github.com/tvesely/TPC-DS
+    tpcds_version: master
+    tpcds_path: "{{ ansible_env.HOME }}/workspace/TPC-DS"
+
+    datagen_path_prefix: /tmp/tpcds_datagen
+    datagen_scale: "{{ datagen_scale }}"
+    databases: []
+    tpcds_tables:
+      - "call_center"
+      - "catalog_page"
+      - "catalog_returns"
+      - "catalog_sales"
+      - "customer"
+      - "customer_address"
+      - "customer_demographics"
+      - "date_dim"
+      - "household_demographics"
+      - "income_band"
+      - "inventory"
+      - "item"
+      - "promotion"
+      - "reason"
+      - "ship_mode"
+      - "store"
+      - "store_returns"
+      - "store_sales"
+      - "time_dim"
+      - "warehouse"
+      - "web_page"
+      - "web_returns"
+      - "web_sales"
+      - "web_site"

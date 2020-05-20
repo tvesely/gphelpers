@@ -1,0 +1,37 @@
+---
+- name: Find DDL files
+  find:
+    path: "{{  _gpdb_tpcds_config.tpcds_path }}/03_ddl/"
+    patterns: "*.gpdb.{{ table }}.sql"
+  register: ddl_sql
+
+- name: Execute table DDLs for database {{ database }}
+  command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file.path }} -v SMALL_STORAGE='appendonly=false' -v MEDIUM_STORAGE='appendonly=false' -v LARGE_STORAGE='appendonly=false' -v DISTRIBUTED_BY='distributed randomly'"
+  environment:
+    PGDATABASE: "{{ database }}"
+  with_items: "{{ ddl_sql.files | sort(attribute='path') }}"
+  loop_control:
+    loop_var: psql_file
+
+- name: Find ext DDL files
+  find:
+    path: "{{  _gpdb_tpcds_config.tpcds_path }}/03_ddl/"
+    patterns: "*.ext_tpcds.{{table}}.sql"
+  register: ddl_sql
+
+- set_fact:
+    gpfdist_location: "gpfdist://{{ gpfdist_host }}:{{ datagen_directory.gpfdist_port }}/{{ table }}_{{ datagen_directory.data_segment }}_{{ _tpcds_parallelism }}.dat"
+  with_items: "{{ datagen_directories }}"
+  loop_control:
+    loop_var: datagen_directory
+  register: gpfdist_result
+- set_fact:
+    gpfdist_locations: "{{ gpfdist_result.results | map(attribute='ansible_facts.gpfdist_location') | list}}" 
+
+- name: Execute ext DDLs for database {{ database }}
+  command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file.path }} -v LOCATION=\"'{{ gpfdist_locations|join(\"', '\") }}'\" "
+  environment:
+    PGDATABASE: "{{ database }}"
+  with_items: "{{ ddl_sql.files | sort(attribute='path') }}"
+  loop_control:
+    loop_var: psql_file

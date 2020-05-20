@@ -1,0 +1,7 @@
+---
+- name: Generate a Postgres database on a host
+  hosts: localhost
+  gather_facts: yes
+
+  roles:
+    - generate_postgres_database

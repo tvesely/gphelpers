@@ -1,0 +1,19 @@
+---
+datagen_scale: 1
+
+postgres_config:
+    databases:
+        zedstore:
+            tablespace: 'pg_default'
+            configuration_parameters:
+                default_table_access_method: 'zedstore'
+                search_path: 'tpcds, \"$user\", public'
+        tpcds:
+            tablespace: 'pg_default'
+            configuration_parameters:
+                search_path: 'tpcds, \"$user\", public'
+
+tpcds_config:
+    databases:
+        - zedstore
+        - tpcds

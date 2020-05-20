@@ -1,0 +1,137 @@
+---
+- name: Clone TPC-DS
+  git:
+    repo: "{{ _tpcds_config.tpcds_repo }}"
+    dest: "{{ _tpcds_config.tpcds_path }}"
+    version: "{{ _tpcds_config.tpcds_version }}"
+    update: false
+
+- name: Build dsdgen CLI tool
+  command: "make -j8"
+  args:
+    chdir: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools"
+
+- name: Install dsqgen
+  copy:
+    src: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/dsqgen"
+    dest: "{{ _tpcds_config.tpcds_path }}/01_gen_data/dsqgen"
+    mode: 0755
+    remote_src: true
+- name: Install dsdgen
+  copy:
+    src: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/dsdgen"
+    dest: "{{ _tpcds_config.tpcds_path }}/01_gen_data/dsdgen"
+    mode: 0755
+    remote_src: true
+- name: Install tpcds.idx
+  copy:
+    src: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/tpcds.idx"
+    dest: "{{ _tpcds_config.tpcds_path }}/01_gen_data/tpcds.idx"
+    mode: 0755
+    remote_src: true
+
+- name: Create tcp-ds folder
+  file:
+    path: "{{ _datagen_path }}"
+    state: directory
+    owner: "{{ _postgres_config.postgres_user }}"
+    mode: 0755
+  become: true
+
+- name: Generate tpc-ds datagen path names
+  set_fact: path_item="{{item}}"
+  with_sequence: start=1 end={{ _tpcds_parallelism }} format={{ _datagen_path }}/gen_data_%02d_of_{{ _tpcds_parallelism }}
+  register: path_result
+- set_fact:
+    path_item:
+      data_segment: "{{item.0+1}}"
+      path: "{{item.1}}"
+  with_indexed_items: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
+  register: path_result
+- set_fact:
+    datagen_directories: "{{path_result.results | map(attribute='ansible_facts.path_item') | list}}" 
+
+- name: Run tpc-ds data generation with scale {{ _tpcds_config.datagen_scale }} with parallelism {{ _tpcds_parallelism }}
+  command: "{{ _tpcds_config.tpcds_path }}/01_gen_data/generate_data.sh {{ _tpcds_config.datagen_scale }} {{ item.data_segment }} {{ _tpcds_parallelism }} {{ item.path }}"
+  args:
+    creates: "{{ _datagen_path }}/datagen_done"
+    chdir: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/"
+  with_items: "{{datagen_directories}}"
+  async: 86400
+  poll: 0
+  register: _create_instances
+
+- name: Generate tcp-ds query0.sql
+  command: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/dsqgen -input {{ _tpcds_config.tpcds_path }}/00_compile_tpcds/query_templates/templates.lst -directory {{ _tpcds_config.tpcds_path }}/00_compile_tpcds/query_templates -output {{ _tpcds_config.tpcds_path }}/01_gen_data/ -dialect pivotal -scale {{ _tpcds_config.datagen_scale }} -verbose y"
+  args:
+    chdir: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/"
+
+- name: Generate tcp-ds queries with scale {{ _tpcds_config.datagen_scale }}
+  command: "{{ _tpcds_config.tpcds_path }}/01_gen_data/generate_queries.sh {{ _tpcds_config.datagen_scale }}"
+  args:
+    chdir: "{{ _tpcds_config.tpcds_path }}/00_compile_tpcds/tools/"
+
+- name: Create DDLs
+  vars:
+    database: "{{item}}"
+  include_tasks: create_ddls.yaml
+  with_items:
+    - "{{ _tpcds_config.databases }}"
+
+- name: Wait for tpc-dh datagen to finish
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: _jobs
+  until: _jobs.finished
+  delay: 60 
+  retries: 1440
+  with_items: "{{ _create_instances.results }}"
+
+- name: Touch datagen_done
+  file:
+    path: "{{ _datagen_path }}/datagen_done"
+    state: touch
+
+# Autovacuum will kill the insert performance when it triggers for ANALYZE,
+# so disable it until after the data load is complete
+- name: Disable autovacuum
+  command: "psql postgres -v ON_ERROR_STOP=1 -c \"ALTER SYSTEM SET autovacuum TO 'off';\""
+- command: "pg_ctl reload"
+
+# TODO: do not exceed max_connections
+- name: Load table data
+  vars:
+    database: "{{ item[0] }}"
+    table: "{{ item[1] }}"
+  include_tasks: load_data_batch.yaml
+  with_nested:
+    - "{{ _tpcds_config.databases }}"
+    - "{{ _tpcds_config.tpcds_tables }}"
+
+- name: Get index DDLs
+  find:
+    paths: "{{ _tpcds_config.tpcds_path }}/03_ddl/"
+    patterns: "*.postgresql-indexes.*.sql"
+  register: index_sql
+
+- name: Create indexes
+  vars:
+    database: "{{item[0]}}"
+    file: "{{item[1].path}}"
+  command: "psql -v ON_ERROR_STOP=1 -f {{file}}"
+  environment:
+    PGDATABASE: "{{ database }}"
+  loop: "{{ _tpcds_config.databases | product( index_sql.files ) | list }}"
+
+- name: Analyze databases
+  command: psql -v ON_ERROR_STOP=1 -c 'ANALYZE;'
+  environment:
+    PGDATABASE: "{{ database }}"
+  loop_control:
+    loop_var: database
+  with_items: "{{ _tpcds_config.databases }}"
+
+- name: Re-enable autovacuum
+  command: "psql postgres -v ON_ERROR_STOP=1 -c \"ALTER SYSTEM SET autovacuum TO 'on';\""
+- command: "pg_ctl reload"
+

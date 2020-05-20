@@ -1,0 +1,17 @@
+---
+- name: Set variables
+  set_fact:
+    _postgres_config: "{{ postgres_default_config | combine(postgres_config | default({}), recursive=True) }}"
+    _tpcds_config: "{{ tpcds_default_config | combine(tpcds_config | default({}), recursive=True) }}"
+- set_fact:
+    _datagen_path: "{{ _tpcds_config.datagen_path_prefix }}_s{{ _tpcds_config.datagen_scale }}"
+    _tpcds_parallelism: "{{ ansible_facts['processor_vcpus'] }}"
+
+- assert:
+    that:
+        - _postgres_config.postgres_env is defined
+        - _postgres_config.postgres_user is defined
+    fail_msg: "At minimum, this role requires the postgres_config.postgres_env and postgres_config.postgres_user to be defined"
+
+- include: tpcds.yaml
+  environment: "{{ _postgres_config.postgres_env }}"
