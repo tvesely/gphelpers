@@ -1,0 +1,13 @@
+gpdb_install_path: /usr/local/greenplum-db
+
+gpdb_tpcds_config:
+    datagen_scale: "{{ ansible_env.DATAGEN_SCALE }}"
+    databases:
+      - tpcds
+    gpdb_env:
+      PGPORT: "{{ ansible_env.PGPORT }}"
+      PGUSER: gpadmin
+      PGDATABASE: gpadmin
+      PGAPPNAME: tpcds_datagen
+      PGHOST: "{{ ansible_env.PGHOST }}"
+      PATH: "{{ gpdb_install_path }}/bin:{{ ansible_env.PATH }}"

@@ -15,6 +15,7 @@ RUN make tools
 
 # Copy the go source
 COPY tpcds-gp4k/cmd/ cmd/
+COPY tpcds-gp4k/pkg/ pkg/
 COPY tpcds-gp4k/main.go ./
 
 # Build
@@ -22,17 +23,22 @@ RUN make
 
 FROM gcr.io/gp-kubernetes/ubuntu-gpdb-ent:latest
 
-COPY --from=runnerbuilder /workspace/bin/tpcds-gp4k /tpcds-gp4k
-
 RUN export DEBIAN_FRONTEND=noninteractive; \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-      git && \
+      gcc \
+      git \
+      make \
+      python3-pip \
+      python3-setuptools && \
+    pip3 install ansible psycopg2-binary --no-cache-dir && \
     apt-get remove -y noop; \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY --from=runnerbuilder /workspace/bin/tpcds-gp4k /tpcds-gp4k
 
 RUN /tpcds-gp4k prepare-image
 

@@ -17,12 +17,18 @@ limitations under the License.
 package cmd
 
 import (
+	"github.com/blang/vfs"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/tvesely/gphelpers/tpcds-gpdb/pkg/prepareimage"
 	ctllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+var prepMode string
+
 func init() {
 	rootCmd.AddCommand(prepImage)
+	prepImage.Flags().StringVarP(&prepMode, "prep-mode", "p", "root", "prep as user 'root' or 'gpadmin'")
 }
 
 var prepImage = &cobra.Command{
@@ -36,7 +42,15 @@ var prepImage = &cobra.Command{
 
 func prepImageRun() error {
 	log := ctllog.Log.WithName("prepare-image")
+	var prepare prepareimage.ImagePrepInterface
+	if prepMode == "root" {
+		prepare = &prepareimage.PrepRootUser{Fs: vfs.OS()}
+	} else if prepMode == "admin" {
+		prepare = &prepareimage.PrepAdminUser{}
+	} else {
+		return errors.Errorf("unknown prep-mode: %s", prepMode)
+	}
 
 	log.Info("preparing container image")
-	return nil
+	return prepare.Run()
 }

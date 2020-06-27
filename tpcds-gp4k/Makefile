@@ -1,6 +1,9 @@
 # Image URL to use all building/pushing image targets
 INSTANCE_IMAGE ?= tpcds-gp4k
 INSTANCE_TAG ?= latest
+PGHOST ?= $(shell kubectl get service/greenplum -o jsonpath='{.spec.clusterIP}')
+PGPORT ?= 5432
+DATAGEN_SCALE ?= 1
 
 .PHONEY: run all docker-build
 
@@ -18,7 +21,11 @@ docker-push:
 	docker push ${INSTANCE_IMAGE}:${INSTANCE_TAG}
 
 run:
-	docker run --rm -d ${INSTANCE_IMAGE}:${INSTANCE_TAG}
+	docker run --rm --net=host \
+		-e PGHOST=${PGHOST} \
+		-e PGPORT=${PGPORT} \
+		-e DATAGEN_SCALE=${DATAGEN_SCALE} \
+		tpcds-gp4k:latest ansible-playbook workspace/ansible/tpc-ds-gpdb.yaml
 
 deploy: docker-build docker-push
 	kubectl apply -f tpcds-gp4k.yaml

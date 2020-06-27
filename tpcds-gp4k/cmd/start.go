@@ -17,6 +17,9 @@ limitations under the License.
 package cmd
 
 import (
+	"os"
+	"os/exec"
+
 	"github.com/spf13/cobra"
 	ctllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -37,7 +40,17 @@ var start = &cobra.Command{
 func runJob() error {
 	log := ctllog.Log.WithName("runJob")
 
-	// TODO: Run container
+	cmd := exec.Command("ansible-playbook", "/home/gpadmin/workspace/ansible/tpc-ds-gpdb.yaml")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=/usr/local/greenplum-db/lib")
+
+	err := cmd.Run()
+	if err != nil {
+		log.Error(err, "ansible returned error")
+	}
+
 	log.Info("TPC-DS job finished. Shutting down.")
 	return nil
 }

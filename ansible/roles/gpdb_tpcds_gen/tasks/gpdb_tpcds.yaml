@@ -70,7 +70,7 @@
 - name: Create databases
   postgresql_db:
     name: "{{ database }}"
-    login_host: localhost
+    login_host: "{{ _gpdb_tpcds_config.gpdb_env.PGHOST }}"
     login_user: "{{ _gpdb_tpcds_config.gpdb_env.PGUSER }}"
     port: "{{ _gpdb_tpcds_config.gpdb_env.PGPORT }}"
     maintenance_db: "{{ _gpdb_tpcds_config.gpdb_env.PGDATABASE }}"
