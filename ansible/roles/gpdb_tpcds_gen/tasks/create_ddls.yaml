@@ -5,8 +5,19 @@
     patterns: "*.gpdb.{{ table }}.sql"
   register: ddl_sql
 
-- name: Execute table DDLs for database {{ database }}
-  command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file.path }} -v SMALL_STORAGE='appendonly=false' -v MEDIUM_STORAGE='appendonly=false' -v LARGE_STORAGE='appendonly=false' -v DISTRIBUTED_BY='distributed randomly'"
+- name: Get distribution key for {{ table }}
+  set_fact:
+    distribution: "DISTRIBUTED BY({{ _gpdb_tpcds_config.table_distribution[table] }})"
+  when:
+   - not _gpdb_tpcds_config.random_distribution
+   - table in _gpdb_tpcds_config.table_distribution
+  register: reg
+- set_fact:
+    distribution: distributed randomly
+  when: reg.skipped is defined
+
+- name: Execute DDLs TABLE {{ table }} DATABASE {{ database }} {{ distribution }}
+  command :  "psql -v ON_ERROR_STOP=1 -f {{ psql_file.path }} -v SMALL_STORAGE='appendonly=true, orientation=column' -v MEDIUM_STORAGE='appendonly=true, orientation=column' -v LARGE_STORAGE='appendonly=true, orientation=column, compresstype=quicklz' -v DISTRIBUTED_BY='{{ distribution }}'"
   environment:
     PGDATABASE: "{{ database }}"
   with_items: "{{ ddl_sql.files | sort(attribute='path') }}"

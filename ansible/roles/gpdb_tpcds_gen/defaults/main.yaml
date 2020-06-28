@@ -8,6 +8,7 @@ gpdb_tpcds_default_config:
     datagen_scale: 1
     gpfdist_start_port: 2300
     databases: []
+    random_distribution: no
     tpcds_tables:
       - "call_center"
       - "catalog_page"
@@ -33,6 +34,31 @@ gpdb_tpcds_default_config:
       - "web_returns"
       - "web_sales"
       - "web_site"
+    table_distribution:
+        call_center: cc_call_center_sk
+        catalog_page: cp_catalog_page_sk
+        catalog_returns: cr_item_sk,cr_order_number
+        catalog_sales: cs_item_sk,cs_order_number
+        customer: c_customer_sk
+        customer_address: ca_address_sk
+        customer_demographics: cd_demo_sk
+        date_dim: d_date_sk
+        household_demographics: hd_demo_sk
+        income_band: ib_income_band_sk
+        inventory: inv_date_sk,inv_item_sk,inv_warehouse_sk
+        item: i_item_sk
+        promotion: p_promo_sk
+        reason: r_reason_sk
+        ship_mode: sm_ship_mode_sk
+        store: s_store_sk
+        store_returns: sr_item_sk,sr_ticket_number
+        store_sales: ss_item_sk,ss_ticket_number
+        time_dim: t_time_sk
+        warehouse: w_warehouse_sk
+        web_page: wp_web_page_sk
+        web_returns: wr_order_number,wr_item_sk
+        web_sales: ws_item_sk,ws_order_number
+        web_site: web_site_sk
 
 gpdb_user: "{{ ansible_env.USER }}"
 gpdb_install_path: /usr/local/gpdb/
