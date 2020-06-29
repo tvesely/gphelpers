@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tpcds-gp4k
+data:
+  DATAGEN_SCALE: "1"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tpcds-gp4k
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: microk8s-hostpath
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tpcds-gp4k
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: tpcds-dataload
+        image: localhost:32000/tpcds-gp4k
+        command: ["/tpcds-gp4k",  "start"]
+        env:
+          - name: DATAGEN_SCALE
+            valueFrom:
+              configMapKeyRef:
+                name: tpcds-gp4k
+                key: DATAGEN_SCALE
+        volumeMounts:
+        - mountPath: "/tpcds"
+          name: tpcds
+      restartPolicy: Never
+      volumes:
+          - name: tpcds
+            persistentVolumeClaim:
+              claimName: tpcds-gp4k
+  backoffLimit: 4

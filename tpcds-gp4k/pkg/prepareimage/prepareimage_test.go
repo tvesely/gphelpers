@@ -31,6 +31,12 @@ var _ = Describe("Prepareimage", func() {
 		It("succeeds", func() {
 			Expect(runErr).NotTo(HaveOccurred())
 		})
+		It("creates the tpcds directory", func() {
+			stat, err := fakeFs.Stat("/tpcds")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stat.Mode()).To(Equal(os.FileMode(0777)))
+		})
+
 		It("creates the ansible directory", func() {
 			stat, err := fakeFs.Stat("/etc/ansible/")
 			Expect(err).NotTo(HaveOccurred())
@@ -43,6 +49,15 @@ var _ = Describe("Prepareimage", func() {
 			hostsBytes, err := vfs.ReadFile(fakeFs, "/etc/ansible/hosts")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(hostsBytes).To(Equal([]byte(prepareimage.AnsibleHostsFile)))
+		})
+		When("making the tpcds directory fails", func() {
+			BeforeEach(func() {
+				dummyfs := vfs.Dummy(errors.New("create tpcds failed"))
+				subject.Fs = dummyfs
+			})
+			It("returns an error", func() {
+				Expect(runErr).To(MatchError("create tpcds failed"))
+			})
 		})
 		When("making the ansible directory fails", func() {
 			BeforeEach(func() {

@@ -1,6 +1,8 @@
 package prepareimage
 
 import (
+	"syscall"
+
 	"github.com/blang/vfs"
 )
 
@@ -26,7 +28,20 @@ ansible_python_interpreter="{{ansible_playbook_python}}"
 `
 
 func (p *PrepRootUser) Run() error {
+	// This folder will exist even if a volume isn't mounted on it, so
+	// it can be used as ephemeral storage.
+	err := p.createTpcdsFolder()
+	if err != nil {
+		return err
+	}
 	return p.initializeAnsible()
+}
+
+func (p *PrepRootUser) createTpcdsFolder() error {
+	// Make sure that the requested permissions are respected
+	// Note: untested
+	syscall.Umask(0)
+	return p.Fs.Mkdir("/tpcds", 0777)
 }
 
 func (p *PrepRootUser) initializeAnsible() error {

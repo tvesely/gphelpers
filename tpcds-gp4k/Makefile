@@ -22,10 +22,10 @@ docker-push:
 
 run:
 	docker run --rm --net=host \
-		-e PGHOST=${PGHOST} \
-		-e PGPORT=${PGPORT} \
+		-e GREENPLUM_SERVICE_HOST=${PGHOST} \
+		-e GREENPLUM_SERVICE_PORT=${PGPORT} \
 		-e DATAGEN_SCALE=${DATAGEN_SCALE} \
-		tpcds-gp4k:latest ansible-playbook workspace/ansible/tpc-ds-gpdb.yaml
+		tpcds-gp4k:latest
 
 deploy: docker-build docker-push
 	kubectl apply -f tpcds-gp4k.yaml
