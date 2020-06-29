@@ -1,4 +1,5 @@
-FROM golang:1.14 as runnerbuilder
+ARG baseImage="golang:1.14"
+FROM ${baseImage} as runnerbuilder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -21,7 +22,14 @@ COPY tpcds-gp4k/main.go ./
 # Build
 RUN make
 
-FROM gcr.io/gp-kubernetes/ubuntu-gpdb-ent:latest
+FROM golang:1.14 as objcache
+COPY --from=runnerbuilder /root/.cache /root/.cache
+COPY --from=runnerbuilder /go/pkg/mod /go/pkg/mod
+COPY --from=runnerbuilder /workspace/bin/cobra  /workspace/bin/cobra
+COPY --from=runnerbuilder /workspace/bin/ginkgo /workspace/bin/ginkgo
+COPY --from=runnerbuilder /workspace/bin/golangci-lint /workspace/bin/golangci-lint
+
+FROM gcr.io/gp-kubernetes/ubuntu-gpdb-ent:latest as tpcds-gp4k
 
 RUN export DEBIAN_FRONTEND=noninteractive; \
     apt-get update && \

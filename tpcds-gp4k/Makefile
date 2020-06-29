@@ -4,6 +4,8 @@ INSTANCE_TAG ?= latest
 PGHOST ?= $(shell kubectl get service/greenplum -o jsonpath='{.spec.clusterIP}')
 PGPORT ?= 5432
 DATAGEN_SCALE ?= 1
+export GOBIN=${PWD}/bin
+
 
 .PHONEY: run all docker-build
 
@@ -14,8 +16,13 @@ tpcds-gp4k: ./bin/tpcds-gp4k
 ./bin/tpcds-gp4k: test
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o ./bin/tpcds-gp4k main.go
 
-docker-build:
-	docker build -f Dockerfile -t ${INSTANCE_IMAGE}:${INSTANCE_TAG} ..
+docker-cache-init:
+	if [ "$(shell docker images ${INSTANCE_IMAGE}-objcache -q)" = "" ]; then \
+		docker build --no-cache --target=objcache -f Dockerfile -t ${INSTANCE_IMAGE}-objcache ..; \
+	fi;
+
+docker-build: docker-cache-init
+	docker build --target=tpcds-gp4k --build-arg baseImage=${INSTANCE_IMAGE}-objcache -f Dockerfile -t ${INSTANCE_IMAGE}:${INSTANCE_TAG} ..
 
 docker-push:
 	docker push ${INSTANCE_IMAGE}:${INSTANCE_TAG}
@@ -37,7 +44,7 @@ test: lint
 	go test ./... -coverprofile cover.out
 
 lint: tools
-	golangci-lint run --enable golint,gofmt
+	PATH=$(GOBIN):$$PATH golangci-lint run --enable golint,gofmt
 
 .PHONY: tools
 tools: ${GOBIN}/ginkgo ${GOBIN}/golangci-lint ${GOBIN}/cobra
@@ -50,4 +57,9 @@ ${GOBIN}/golangci-lint:
 
 ${GOBIN}/cobra:
 	go install github.com/spf13/cobra/cobra
+
+clean:
+	rm -f ${GOBIN}/ginkgo ${GOBIN}/golang ${GOBIN}/cobra
+	docker rmi ${INSTANCE_IMAGE}
+	docker rmi ${INSTANCE_IMAGE}-objcache
 
