@@ -104,7 +104,7 @@
   command :  "psql -v ON_ERROR_STOP=1 -t -A -c 'select inet_client_addr();'"
   register: hostname_cmd
 - set_fact:
-    _gpfdist_host: "{{ hostname_cmd.stdout }}"
+    _gpfdist_host: "{{ _is_kubernetes | ternary(_tpcds_kubernetes_service_address, hostname_cmd.stdout) }}"
 
 - name: Create DDLs
   vars:
@@ -134,7 +134,7 @@
   command: "{{ _gpdb_tpcds_config.tpcds_path }}/04_load/stop_gpfdist.sh"
 
 - name: Start gpfdist
-  command: "{{ _gpdb_tpcds_config.tpcds_path }}/04_load/start_gpfdist.sh {{ datagen.gpfdist_port }} {{ datagen.path }}"
+  shell: "nohup gpfdist -p {{ datagen.gpfdist_port }} -d {{ datagen.path }} -b 0.0.0.0 > gpfdist.{{ datagen.gpfdist_port }}.log 2>&1 &"
   args:
     chdir: "/tmp/"
   with_items: "{{ datagen_directories }}"

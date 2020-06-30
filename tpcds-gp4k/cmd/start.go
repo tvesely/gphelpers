@@ -40,7 +40,7 @@ var start = &cobra.Command{
 func runJob() error {
 	log := ctllog.Log.WithName("runJob")
 
-	cmd := exec.Command("ansible-playbook", "/home/gpadmin/workspace/ansible/tpc-ds-gpdb.yaml")
+	cmd := exec.Command("ansible-playbook", "/home/gpadmin/workspace/ansible/tpc-ds-gpdb.yaml", "-v")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
 	cmd.Env = os.Environ()
