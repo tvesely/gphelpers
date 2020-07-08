@@ -1,0 +1,7 @@
+---
+- name: Build gpdb
+  hosts: localhost
+  gather_facts: yes
+
+  roles:
+    - build_gpdb

@@ -1,0 +1,27 @@
+---
+- name: Cloning gp-xerces into ~/workspace
+  git:
+    repo: "https://github.com/greenplum-db/gp-xerces"
+    dest: "{{ ansible_env.HOME }}/workspace/gp-xerces"
+    remote: origin
+- name: Create gp-xerces build directory
+  file:
+    path: "{{ _xerces_config.repo_directory }}/build"
+    state: directory
+    mode: 0755
+- name: Configure gp-xerces
+  command: "../configure --prefix={{ _xerces_config.prefix }}"
+  args:
+    chdir: "{{ _xerces_config.repo_directory }}/build"
+    creates: "{{ _xerces_config.repo_directory }}/build/Makefile"
+- name: Build gp-xerces
+  command: "make -j{{ _xerces_config.build_core_count }}"
+  args:
+    chdir: "{{ _xerces_config.repo_directory }}/build"
+    creates: "{{ _xerces_config.prefix }}/lib/libxerces-c-3.1.so"
+- name: Install gp-xerces
+  command: "make install"
+  args:
+    chdir: "{{ _xerces_config.repo_directory }}/build"
+    creates: "{{ _xerces_config.prefix }}/lib/libxerces-c-3.1.so"
+  notify: Run ldconfig

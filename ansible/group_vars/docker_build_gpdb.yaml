@@ -1,0 +1,15 @@
+gpdb_repo: "{{ ansible_env.GPDB_REPO | default('https://github.com/greenplum-db/gpdb') }}"
+gpdb_install_path: /home/gpadmin/build/greenplum-db
+gpdb_version: "{{ ansible_env.GPDB_VERSION | default('master') }}"
+
+xerces_config:
+    prefix: "/home/gpadmin/build/"
+
+orca_config:
+    prefix: "/home/gpadmin/build/"
+
+# Production build
+greenplum_config:
+    enable_cassert: False
+    cflags: "-O2 -fno-omit-frame-pointer"
+    clean_build_files: True

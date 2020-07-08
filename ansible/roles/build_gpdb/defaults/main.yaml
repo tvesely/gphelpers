@@ -1,0 +1,54 @@
+---
+gpdb_repo: https://github.com/greenplum-db/gpdb
+# gpdb_version: < if set, check out this version >
+# this var is in common with postgres_dev
+gpdb_install_path: /usr/local/gpdb
+
+# Will be overridden if it is possible to build ORCA
+_build_xerces: False
+_build_orca: False
+_checkout_gpdb: False
+
+build_core_count: "{{ ansible_facts['processor_vcpus'] }}"
+
+xerces_default_config:
+    repo_directory: "{{ ansible_env.HOME }}/workspace/gp-xerces"
+    build_core_count: "{{ build_core_count }}"
+
+    prefix: "/usr/local/"
+
+orca_default_config:
+    repo: https://github.com/greenplum-db/gporca
+    repo_directory: "{{ ansible_env.HOME }}/workspace/gporca"
+    repo_force: False
+    repo_update: True
+    build_core_count: "{{ build_core_count }}"
+
+    prefix: "/usr/local/"
+
+greenplum_default_config:
+    repo: "{{ gpdb_repo }}"
+    repo_directory: "{{ansible_env.HOME}}/workspace/gpdb"
+    repo_version: "{{ gpdb_version | default('HEAD') }}"
+    repo_force: False
+    repo_update: False
+
+    # Build flags
+    with_libxml: True
+    with_zstd: True
+    with_python: True
+    enable_debug_extensions: True
+    enable_orca: True
+    enable_gpcloud: True
+    enable_debug: True
+    enable_cassert: True
+    cflags: "-O0 -fno-omit-frame-pointer"
+
+    prefix: "{{ gpdb_install_path }}"
+
+    build_core_count: "{{ build_core_count }}"
+    clean_build_files: False
+
+greenplum_standard_build:
+    enable_cassert: False
+    cflags: "-O2 -fno-omit-frame-pointer"

@@ -1,0 +1,71 @@
+---
+- name: Get configuration
+  set_fact:
+    _greenplum_config: "{{ greenplum_default_config | combine(greenplum_config | default({}), recursive=True) }}"
+- set_fact:
+    _orca_config: "{{ orca_default_config | combine(orca_config | default({}), recursive=True) }}"
+- set_fact:
+    _xerces_config: "{{ xerces_default_config | combine(xerces_config | default({}), recursive=True) }}"
+
+# Check out gpdb if a version is specifically set, or it is explicitly set in
+# the greenplum_config, otherwise just build the currently checked out version
+- set_fact:
+    _checkout_gpdb: True
+  when:
+    - gpdb_version is defined or _greenplum_config.repo_update
+- set_fact:
+    _greenplum_config: "{{ _greenplum_config | combine({'repo_update': True, 'repo_version': gpdb_version}) }}"
+  when:
+    - gpdb_version is defined
+
+- name: Check out gpdb version {{ _greenplum_config.repo_version }}
+  git:
+    repo: "{{ _greenplum_config.repo }}"
+    dest: "{{ _greenplum_config.repo_directory }}"
+    version: "{{ _greenplum_config.repo_version }}"
+    force: "{{ _greenplum_config.repo_force }}"
+    update: "{{ _greenplum_config.repo_update }}"
+  when: _checkout_gpdb
+
+- name: Get ORCA version for build
+  set_fact:
+    _orca_tag: "{{ _orca_config.orca_tag_override }}"
+  when: _greenplum_config.orca_tag_override is defined
+
+- slurp:
+    src: "{{ _greenplum_config.repo_directory}}/concourse/tasks/compile_gpdb.yml"
+  register: slurpfile
+  when: _orca_tag is not defined
+  ignore_errors: True
+
+- set_fact:
+    _orca_tag: "{{ (slurpfile['content'] | b64decode | from_yaml).params.ORCA_TAG }}"
+  when:
+   - slurpfile['content'] is defined
+   - slurpfile['content'] | b64decode | from_yaml is defined
+   - (slurpfile['content'] | b64decode | from_yaml).params.ORCA_TAG is defined
+
+- command: grep -Po 'v\d+.\d+.\d+' {{ _greenplum_config.repo_directory }}/depends/conanfile_orca.txt
+  when:
+    _orca_tag is not defined
+  register: orca_command_output
+  ignore_errors: True
+
+- set_fact:
+    _orca_tag: "{{ orca_command_output.stdout }}"
+  when:
+    - orca_command_output is defined
+    - orca_command_output.failed is defined
+    - not orca_command_output.failed
+
+- set_fact:
+    _build_orca: True
+    _orca_version_string: "{{ _orca_tag | regex_replace('^v(\\d+\\.\\d+\\.\\d+)$', '\\1') }}"
+  when:
+    - _orca_tag is defined
+    - _greenplum_config.enable_orca
+
+- include: gp_xerces.yaml
+- include: gporca.yaml
+  when: _build_orca
+- include: gpdb.yaml

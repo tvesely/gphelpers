@@ -1,0 +1,36 @@
+---
+- name: Check out gporca version {{ _orca_tag }}
+  git:
+    repo: "{{ _orca_config.repo }}"
+    dest: "{{ _orca_config.repo_directory }}"
+    version: "{{ _orca_tag }}"
+    force: "{{ _orca_config.repo_force }}"
+    update: "{{ _orca_config.repo_update }}"
+  register: checkout_status
+- name: Remove old build directory
+  file:
+    path: "{{ _orca_config.repo_directory }}/build"
+    state: absent
+  when: checkout_status.changed
+- name: Create gporca build directory
+  file:
+    path: "{{ _orca_config.repo_directory }}/build"
+    state: directory
+    mode: 0755
+  register: builddir_status
+- name: Run cmake for gporca
+  command: "cmake -D CMAKE_INSTALL_PREFIX={{ _orca_config.prefix }} -D XERCES_INCLUDE_DIR={{ _xerces_config.prefix }}/include -D XERCES_LIBRARY={{ _xerces_config.prefix }}/lib/libxerces-c.so ../"
+  args:
+    chdir: "{{ _orca_config.repo_directory }}/build"
+    creates: "{{ _orca_config.repo_directory }}/build/Makefile"
+  environment:
+      CMAKE_INSTALL_PREFIX: "{{ _orca_config.prefix }}"
+- name: Make clean orca
+  command: make clean
+  args:
+    chdir: "{{ _orca_config.repo_directory }}/build"
+  when: builddir_status.changed
+- name: Build and install gporca
+  command: "make -j{{ _orca_config.build_core_count }} install"
+  args:
+    chdir: "{{ _orca_config.repo_directory }}/build"
