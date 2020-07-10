@@ -15,6 +15,7 @@ export CLOUDSDK_CORE_PROJECT=data-gp-releng
 
 GPDB_DEB_DIRECTORY=${HOME}/platform/gpdb/debs/
 GPDB_RPM_DIRECTORY=${HOME}/platform/gpdb/rpms/
+GP4K_DIRECTORY=${HOME}/platform/gp4k/
 GPDB_4X_ZIP_DIRECTORY=${HOME}/platform/gpdb/zip/
 
 function finish {
@@ -174,6 +175,29 @@ pivnet_download_gpdb_platform() {
             popd
         fi
     fi
+}
+
+pivnet_download_gp4k() {
+    SLUG=$1
+    local VERSION_DIR=${GP4K_DIRECTORY}/$SLUG
+
+    mkdir -p ${VERSION_DIR}
+
+    if [ ! -f ${VERSION_DIR}/greenplum-for-kubernetes-v${SLUG}.tar.gz ]; then
+        pivnet_login
+        pushd ${VERSION_DIR}
+            pivnet download-product-files -p greenplum-for-kubernetes -r ${SLUG} -g greenplum-for-kubernetes-v${SLUG}.tar.gz
+        popd
+    fi
+
+    if [ ! -d ${VERSION_DIR}/greenplum-for-kubernetes-v${SLUG} ]; then
+        pushd ${VERSION_DIR}
+            tar -xzf greenplum-for-kubernetes-v${SLUG}.tar.gz
+        popd
+    fi
+
+    docker load -i ${VERSION_DIR}/greenplum-for-kubernetes-v${SLUG}/images/greenplum-for-kubernetes
+    docker load -i ${VERSION_DIR}/greenplum-for-kubernetes-v${SLUG}/images/greenplum-operator
 }
 
 setup_helper_environment() {
