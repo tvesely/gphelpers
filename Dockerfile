@@ -63,6 +63,7 @@ ARG gpdb_repo="https://github.com/greenplum-db/gpdb"
 ENV GPDB_REPO=${gpdb_repo}
 RUN --mount=type=cache,target=/home/gpadmin/.ccache,uid=1000,gid=1000 \
     cd ansible && \
+    ccache -z && \
     CPPFLAGS=-I/home/gpadmin/build/include \
     LDFLAGS=-L/home/gpadmin/build/lib \
       ansible-playbook -i ./docker_build_gpdb_hosts.ini ./build_gpdb.yaml -v && \
