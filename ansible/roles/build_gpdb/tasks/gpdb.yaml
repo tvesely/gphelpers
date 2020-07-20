@@ -1,16 +1,17 @@
 ---
 - set_fact:
-    _libxml_flag:  "{{ _greenplum_config.with_libxml | ternary('--with-libxml', '--without-libxml') }}"
-    _zstd_flag:  "{{ _greenplum_config.with_zstd | ternary('--with-zstd', '--without-zstd') }}"
-    _python_flag:  "{{ _greenplum_config.with_python | ternary('--with-python', '--without-python') }}"
-    _debug_extensions_flag:  "{{ _greenplum_config.enable_debug_extensions | ternary('--enable-debug-extensions', '--disable-debug-extensions') }}"
-    _orca_flag:  "{{ _greenplum_config.enable_orca | ternary('--enable-orca', '--disable-orca') }}"
-    _gpcloud_flag: "{{ _greenplum_config.enable_gpcloud | ternary('--enable-gpcloud', '--disable-gpcloud') }}"
-    _debug_flag: "{{ _greenplum_config.enable_debug | ternary('--enable-debug', '--disable-debug')}}"
     _cassert_flag: "{{ _greenplum_config.enable_cassert | ternary('--enable-cassert', '--disable-cassert')}}"
+    _debug_extensions_flag:  "{{ _greenplum_config.enable_debug_extensions | ternary('--enable-debug-extensions', '--disable-debug-extensions') }}"
+    _debug_flag: "{{ _greenplum_config.enable_debug | ternary('--enable-debug', '--disable-debug')}}"
+    _enable_ic_proxy_flag: "{{ _greenplum_config.enable_ic_proxy | ternary('--enable-ic-proxy', '--disable-ic-proxy')}}"
+    _gpcloud_flag: "{{ _greenplum_config.enable_gpcloud | ternary('--enable-gpcloud', '--disable-gpcloud') }}"
+    _libxml_flag:  "{{ _greenplum_config.with_libxml | ternary('--with-libxml', '--without-libxml') }}"
+    _orca_flag:  "{{ _greenplum_config.enable_orca | ternary('--enable-orca', '--disable-orca') }}"
+    _python_flag:  "{{ _greenplum_config.with_python | ternary('--with-python', '--without-python') }}"
+    _zstd_flag:  "{{ _greenplum_config.with_zstd | ternary('--with-zstd', '--without-zstd') }}"
 
 - name: Configure gpdb
-  command: ./configure {{ _libxml_flag }} {{ _zstd_flag }} {{ _python_flag }} {{ _debug_extensions_flag }} {{ _orca_flag }} {{ _gpcloud_flag }} {{ _debug_flag }} {{ _cassert_flag }} --prefix={{ _greenplum_config.prefix }}
+  command: ./configure {{ _cassert_flag }} {{ _debug_extensions_flag }} {{ _debug_flag }} {{ _enable_ic_proxy_flag }} {{ _gpcloud_flag }} {{ _libxml_flag }} {{ _orca_flag }} {{ _python_flag }} {{ _zstd_flag }} --prefix={{ _greenplum_config.prefix }}
   args:
     chdir: "{{ _greenplum_config.repo_directory }}"
   environment:

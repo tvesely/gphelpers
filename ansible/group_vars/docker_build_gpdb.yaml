@@ -11,5 +11,6 @@ orca_config:
 # Production build
 greenplum_config:
     enable_cassert: False
+    enable_ic_proxy: True
     cflags: "-O2 -fno-omit-frame-pointer"
     clean_build_files: True

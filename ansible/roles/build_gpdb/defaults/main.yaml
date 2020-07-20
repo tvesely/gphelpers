@@ -38,6 +38,7 @@ greenplum_default_config:
     with_zstd: True
     with_python: True
     enable_debug_extensions: True
+    enable_ic_proxy: False
     enable_orca: True
     enable_gpcloud: True
     enable_debug: True

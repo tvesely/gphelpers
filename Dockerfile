@@ -26,6 +26,7 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
       libreadline-dev \
       libssl-dev \
       libssl-dev \
+      libuv1-dev \
       libxml2-dev \
       libxml2-utils \
       libyaml-dev \
@@ -94,6 +95,7 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
          libcurl3-gnutls \
          libcurl4 \
          libevent-2.1.6 \
+         libuv1 \
          libxml2 \
          libyaml-0-2 \
          locales \
