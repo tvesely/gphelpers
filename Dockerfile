@@ -20,6 +20,7 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
       libbz2-dev \
       libcurl4-gnutls-dev \
       libevent-dev \
+      libffi-dev \
       liblz4-dev \
       libperl-dev \
       libpython-dev \
@@ -35,11 +36,13 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
       net-tools \
       openssh-server \
       python \
+      python3-dev \
       python3-pip \
       python3-setuptools \
       sudo \
       xsltproc \
       zlib1g-dev && \
+    pip3 install wheel --no-cache-dir && \
     pip3 install ansible psycopg2-binary --no-cache-dir && \
     groupadd -g 1000 gpadmin -f && \
     useradd gpadmin -u 1000 -g gpadmin -m -p '*' -G tty -s /bin/bash && \
